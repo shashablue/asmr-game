@@ -233,8 +233,9 @@
       <div class="stage-slot" id="slot-1">空き枠 2</div>
     </div>
 
-    <div id="timeline-badge-bar" style="margin-top:10px; font-size:0.82rem; color:var(--green);">
-      💧 記録された単発リズム: <span id="recorded-count">0</span> 音
+    <div id="timeline-badge-bar" class="flex-row" style="margin-top:10px; justify-content:space-between; font-size:0.82rem; color:var(--green);">
+      <div>💧 記録された単発リズム: <span id="recorded-count">0</span> 音</div>
+      <button id="reset-timeline-btn" class="secondary hidden" style="padding:4px 10px; font-size:0.75rem;" onclick="resetRecordedTimeline()">🗑 リズムをリセット</button>
     </div>
 
     <div class="flex-row" style="margin-top:14px; padding-top:12px; border-top:1px solid #2b304a; justify-content:space-between;">
@@ -290,11 +291,14 @@
     <div class="sound-grid" id="solo-base-grid"></div>
 
     <div class="flex-row" style="margin:18px 0 6px; justify-content:space-between;">
-      <h4 style="margin:0;">💧 アクセント単発音（34種・タップで再生）</h4>
+      <div>
+        <h4 style="margin:0;">💧 アクセント単発音（34種）</h4>
+        <div style="font-size:0.78rem; color:var(--muted);">「試聴」は確認のみ、「鳴らす」を押すとタイミングがリズム記録されます</div>
+      </div>
       <div class="flex-row" style="gap:12px;">
         <label id="replay-timeline-label" class="hidden" style="font-size:0.85rem; color:var(--green); cursor:pointer;">
-          <input type="checkbox" id="replay-timeline-chk" checked onchange="toggleTimelineLoop(this.checked)">
-          セッションの単発リズムをループ再生
+          <input type="checkbox" id="replay-timeline-chk" onchange="toggleTimelineLoop(this.checked)">
+          単発リズムをループ再生
         </label>
         <label style="font-size:0.85rem; cursor:pointer;">
           <input type="checkbox" id="auto-accent-chk" onchange="toggleAutoAccent(this.checked)">
@@ -416,7 +420,6 @@
     if (audioBufferCache[cacheKey]) return audioBufferCache[cacheKey];
 
     const raw = soundObj.rawFilename;
-    // 候補リスト：通常、MacのNFD濁点形式、「が」抜け（「水滴ポタポタ.mp3」等）、小文字拡張子
     const candidates = [
       raw,
       raw.normalize('NFD'),
@@ -430,12 +433,9 @@
         const audioBuf = await tryFetchAndDecode('sounds/' + encodeURIComponent(name));
         audioBufferCache[cacheKey] = audioBuf;
         return audioBuf;
-      } catch (_) {
-        // 次の候補を試す
-      }
+      } catch (_) {}
     }
 
-    // すべて失敗した場合
     triggerRipple(`⚠️ 「${raw}」がsoundsフォルダに見つかりませんでした`);
     return createFallbackBuffer(soundObj.isBase);
   }
@@ -552,6 +552,23 @@
 
   function updateRecordedCountUI() {
     document.getElementById('recorded-count').innerText = recordedAccents.length;
+    const resetBtn = document.getElementById('reset-timeline-btn');
+    if (isSoloMode && recordedAccents.length > 0) {
+      resetBtn.classList.remove('hidden');
+      document.getElementById('replay-timeline-label').classList.remove('hidden');
+    } else {
+      resetBtn.classList.add('hidden');
+      if (isSoloMode) document.getElementById('replay-timeline-label').classList.add('hidden');
+    }
+  }
+
+  function resetRecordedTimeline() {
+    stopTimelineLoop();
+    recordedAccents = [];
+    sessionStartTime = 0;
+    document.getElementById('replay-timeline-chk').checked = false;
+    updateRecordedCountUI();
+    triggerRipple('🗑 記録された単発リズムをリセットしました');
   }
 
   function startTimelineLoop() {
@@ -900,7 +917,7 @@
     const s = list.find(item => item.id === soundId);
     if (!s) return;
     playOneShot(s, true);
-    triggerRipple(`🎧 自分だけ試聴中: ${s.name}`);
+    triggerRipple(`🎧 試聴中（記録なし）: ${s.name}`);
   }
 
   function toggleBaseById(soundId) {
@@ -956,7 +973,7 @@
   }
 
   // ==========================================
-  // 5. ソロ（おやすみ）モード ＆ タイムライン再現
+  // 5. ソロ（おやすみ）モード ＆ タイムライン記録・再現
   // ==========================================
   let autoAccentTimer = null;
 
@@ -966,6 +983,7 @@
     stageSlots = preset && preset.slots ? JSON.parse(JSON.stringify(preset.slots)) : [];
     recordedAccents = preset && preset.accents ? JSON.parse(JSON.stringify(preset.accents)) : [];
     sessionLoopDurationMs = preset && preset.loopDurationMs ? preset.loopDurationMs : 60000;
+    sessionStartTime = 0;
 
     updateRecordedCountUI();
     syncStageAudioAndUI();
@@ -990,6 +1008,22 @@
     renderSoloGrid();
   }
 
+  function fireSoloAccent(soundId) {
+    const s = ACCENT_SOUNDS.find(item => item.id === soundId);
+    if (!s) return;
+
+    playOneShot(s, false);
+
+    // 1音目を鳴らした瞬間を0秒基準にしてタイムラインに記録（60秒周期）
+    if (sessionStartTime === 0) {
+      sessionStartTime = Date.now();
+    }
+    const offsetMs = (Date.now() - sessionStartTime) % sessionLoopDurationMs;
+    recordedAccents.push({ offsetMs, sound: s });
+    updateRecordedCountUI();
+    triggerRipple(`💧 「${s.name}」を鳴らしました（リズム記録 ${recordedAccents.length}音目）`);
+  }
+
   function renderSoloGrid() {
     const baseGrid = document.getElementById('solo-base-grid');
     baseGrid.innerHTML = '';
@@ -999,9 +1033,12 @@
       div.className = 'sound-item';
       div.innerHTML = `
         <strong>${s.name}</strong>
-        <button class="${activeSlot ? 'active-stage' : 'secondary'}" onclick="toggleSoloBase('${s.id}')">
-          ${activeSlot ? '再生中 (OFFにする)' : '追加 (ON)'}
-        </button>
+        <div class="flex-row" style="gap:6px;">
+          <button class="secondary" style="padding:6px 8px; font-size:0.78rem;" onclick="previewSoundById('${s.id}', true)">🎧 試聴</button>
+          <button class="${activeSlot ? 'active-stage' : 'secondary'}" style="flex:1; padding:6px 8px; font-size:0.8rem;" onclick="toggleSoloBase('${s.id}')">
+            ${activeSlot ? '⏹ 停止' : '✨ 追加'}
+          </button>
+        </div>
         ${activeSlot ? `<input type="range" min="10" max="80" value="${activeSlot.volume * 100}" oninput="setSoloVol('${s.id}', this.value)">` : ''}
       `;
       baseGrid.appendChild(div);
@@ -1010,16 +1047,16 @@
     const accGrid = document.getElementById('solo-accent-grid');
     if (accGrid.children.length === 0) {
       ACCENT_SOUNDS.forEach(s => {
-        const btn = document.createElement('button');
-        btn.className = 'secondary';
-        btn.style.fontSize = '0.8rem';
-        btn.style.padding = '8px';
-        btn.innerText = `💧 ${s.name}`;
-        btn.onclick = () => {
-          playOneShot(s, false);
-          triggerRipple(`💧 ${s.name}`);
-        };
-        accGrid.appendChild(btn);
+        const div = document.createElement('div');
+        div.className = 'sound-item';
+        div.innerHTML = `
+          <strong>💧 ${s.name}</strong>
+          <div class="flex-row" style="gap:6px;">
+            <button class="secondary" style="padding:6px 8px; font-size:0.78rem;" onclick="previewSoundById('${s.id}', false)">🎧 試聴</button>
+            <button class="green" style="flex:1; padding:6px 8px; font-size:0.8rem;" onclick="fireSoloAccent('${s.id}')">鳴らす</button>
+          </div>
+        `;
+        accGrid.appendChild(div);
       });
     }
   }
