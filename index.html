@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>おやすみASMRブレンド</title>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f111a;
+      --card: #1a1d2e;
+      --card-sub: #23273d;
+      --accent: #7c6aef;
+      --accent-soft: rgba(124, 106, 239, 0.2);
+      --green: #2ec4b6;
+      --text: #eef0f8;
+      --muted: #8f95b2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+    header {
+      text-align: center;
+      padding: 20px 16px 10px;
+      border-bottom: 1px solid #25293e;
+    }
+    header h1 { margin: 0; font-size: 1.4rem; letter-spacing: 0.05em; }
+    header p { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
+
+    .container { max-width: 760px; margin: 0 auto; padding: 16px; }
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    .hidden { display: none !important; }
+
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover:not(:disabled) { filter: brightness(1.12); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.secondary { background: var(--card-sub); color: var(--text); border: 1px solid #343954; }
+    button.green { background: var(--green); color: #0a1414; }
+    button.active-stage { background: var(--green); color: #0a1414; box-shadow: 0 0 12px rgba(46, 196, 182, 0.5); }
+
+    input[type="text"], select {
+      background: var(--card-sub);
+      border: 1px solid #383e5c;
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+    }
+    input[type="range"] { width: 100%; accent-color: var(--green); }
+
+    .stage-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .stage-slot {
+      background: var(--card-sub);
+      border: 1px dashed #42486b;
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      min-height: 92px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .stage-slot.filled {
+      border: 1px solid var(--green);
+      background: rgba(46, 196, 182, 0.08);
+    }
+
+    .visualizer {
+      height: 70px;
+      background: #131624;
+      border-radius: 12px;
+      margin: 12px 0;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid var(--green);
+      animation: rippleAnim 1.8s ease-out forwards;
+      pointer-events: none;
+    }
+    @keyframes rippleAnim {
+      0% { width: 10px; height: 10px; opacity: 0.8; }
+      100% { width: 260px; height: 260px; opacity: 0; }
+    }
+
+    .sound-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .sound-item {
+      background: var(--card-sub);
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      background: var(--accent-soft);
+      color: #b8afff;
+    }
+    .flex-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .star-btn { font-size: 1.5rem; background: none; padding: 4px 8px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🎧 おやすみASMRブレンド</h1>
+  <p>最大2つの環境ベース音 × 繊細なアクセント音でつくる癒やし空間</p>
+</header>
+
+<div class="container">
+
+  <!-- 1. モード選択（トップ画面） -->
+  <div id="view-home" class="card">
+    <h3>モードを選んでスタート</h3>
+    <p style="font-size:0.9rem; color:var(--muted);">ヘッドホン・イヤホンの着用をおすすめします（急な大音量は出ない安心設計です）</p>
+    <div class="flex-row" style="margin-top:14px;">
+      <button onclick="startSoloMode()">🌙 1人でおやすみモード（自分専用）</button>
+      <button class="secondary" onclick="showMultiLobby()">👥 みんなでセッション（最大10人）</button>
+    </div>
+
+    <div style="margin-top:22px; border-top:1px solid #2b304a; padding-top:14px;">
+      <h4 style="margin:0 0 8px;">⭐ 保存したお気に入りレシピ</h4>
+      <div id="favorite-list" style="font-size:0.9rem; color:var(--muted);">まだ保存されたレシピはありません</div>
+    </div>
+  </div>
+
+  <!-- 2. マルチプレイ ロビー（接続画面） -->
+  <div id="view-lobby" class="card hidden">
+    <div class="flex-row" style="justify-content:space-between;">
+      <h3 style="margin:0;">👥 オンラインルーム</h3>
+      <button class="secondary" onclick="goHome()">← 戻る</button>
+    </div>
+
+    <div style="background:var(--card-sub); padding:12px; border-radius:10px; margin:12px 0;">
+      <div>あなたのルームID: <strong id="my-peer-id" style="color:var(--green); font-size:1.1rem;">発行中...</strong></div>
+      <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">ホストになる場合はこのIDを仲間に教えてください（最大10人）</div>
+    </div>
+
+    <div class="flex-row">
+      <input type="text" id="join-peer-id" placeholder="ホストのIDを入力（例: asmr-1234）" style="flex:1;">
+      <button onclick="joinRoom()">参加する</button>
+    </div>
+
+    <div id="lobby-members" style="margin-top:14px; font-size:0.9rem;">
+      現在の参加者: <span id="member-count">1</span> / 10人
+    </div>
+
+    <div id="host-controls" style="margin-top:16px; border-top:1px solid #2b304a; padding-top:14px;">
+      <label style="font-size:0.9rem;">セッション時間:
+        <select id="session-duration">
+          <option value="30">30秒（サクッと）</option>
+          <option value="60" selected>60秒（おすすめ）</option>
+          <option value="90">90秒（じっくり）</option>
+        </select>
+      </label>
+      <button class="green" style="margin-left:10px;" onclick="hostStartSession()">▶ 全員でセッション開始！</button>
+    </div>
+  </div>
+
+  <!-- 3. 共通ステージ（今鳴っている音＆波紋） -->
+  <div id="view-stage" class="card hidden">
+    <div class="flex-row" style="justify-content:space-between;">
+      <div>
+        <span class="badge" id="mode-badge">セッション中</span>
+        <strong id="timer-display" style="margin-left:8px; font-size:1.1rem;">--:--</strong>
+      </div>
+      <button class="secondary" onclick="goHome()">終了して戻る</button>
+    </div>
+
+    <div class="visualizer" id="visualizer">
+      <span id="live-log">静かな空間が待機しています...</span>
+    </div>
+
+    <h4 style="margin:10px 0 4px;">🌊 現在の環境ベース（最大2枠・先着入れ替え制）</h4>
+    <div class="stage-box">
+      <div class="stage-slot" id="slot-0">空き枠 1</div>
+      <div class="stage-slot" id="slot-1">空き枠 2</div>
+    </div>
+
+    <div class="flex-row" style="margin-top:14px; padding-top:12px; border-top:1px solid #2b304a; justify-content:space-between;">
+      <div class="flex-row">
+        <span style="font-size:0.85rem;">⏰ おやすみタイマー:</span>
+        <select id="sleep-timer-select" onchange="setSleepTimer(this.value)">
+          <option value="0">OFF</option>
+          <option value="15">15分後フェードアウト</option>
+          <option value="30">30分後フェードアウト</option>
+          <option value="60">60分後フェードアウト</option>
+        </select>
+        <span id="sleep-timer-status" style="font-size:0.8rem; color:var(--green);"></span>
+      </div>
+      <button class="secondary" onclick="saveCurrentFavorite()">⭐ この組み合わせを保存</button>
+    </div>
+  </div>
+
+  <!-- 4A. マルチプレイ用：自分の担当操作パネル -->
+  <div id="view-multi-pad" class="card hidden">
+    <div class="badge" id="my-role-badge">あなたの担当</div>
+    <h3 id="my-sound-title" style="margin:6px 0 12px;">---</h3>
+
+    <div id="ctrl-base" class="hidden">
+      <p style="font-size:0.85rem; color:var(--muted);">
+        ステージに出すと全員にループ配信されます（3人目が入ると古い音と交代します）
+      </p>
+      <div style="margin:10px 0;">
+        <label style="font-size:0.85rem;">自分の音量バランス: <span id="my-base-vol-label">50</span>%</label>
+        <input type="range" id="my-base-vol" min="10" max="80" value="50" oninput="updateMyBaseVolume(this.value)">
+      </div>
+      <div class="flex-row">
+        <button class="secondary" onclick="previewMySound()">🎧 自分だけ試聴（3秒）</button>
+        <button id="btn-toggle-stage" onclick="toggleMyBaseStage()">✨ ステージに出す（ON）</button>
+      </div>
+    </div>
+
+    <div id="ctrl-accent" class="hidden">
+      <p style="font-size:0.85rem; color:var(--muted);">
+        心地よい「間（ま）」を見つけてタップしてください（連打防止の3秒クールタイム付き）
+      </p>
+      <div class="flex-row">
+        <button class="secondary" onclick="previewMySound()">🎧 自分だけ試聴</button>
+        <button id="btn-fire-accent" class="green" onclick="fireMyAccent()">💧 みんなに鳴らす</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4B. ソロ（おやすみ）モード用：全42音ミキサー -->
+  <div id="view-solo-mixer" class="card hidden">
+    <h4 style="margin:0 0 6px;">🌊 環境ベース音（8種・最大2つまで同時再生）</h4>
+    <div class="sound-grid" id="solo-base-grid"></div>
+
+    <div class="flex-row" style="margin:18px 0 6px; justify-content:space-between;">
+      <h4 style="margin:0;">💧 アクセント単発音（34種・タップで再生）</h4>
+      <label style="font-size:0.85rem; cursor:pointer;">
+        <input type="checkbox" id="auto-accent-chk" onchange="toggleAutoAccent(this.checked)">
+        寝落ち用：ランダムに自動再生する（数秒おき）
+      </label>
+    </div>
+    <div class="sound-grid" id="solo-accent-grid"></div>
+  </div>
+
+  <!-- 5. セッション終了後の癒やし度採点モーダル -->
+  <div id="view-rating" class="card hidden" style="text-align:center;">
+    <h3>🌙 セッション終了！</h3>
+    <p>今つくられたASMR空間の「癒やし度」を採点してください</p>
+    <div id="star-buttons" style="margin:14px 0;">
+      <button class="star-btn" onclick="submitRating(1)">★1</button>
+      <button class="star-btn" onclick="submitRating(2)">★2</button>
+      <button class="star-btn" onclick="submitRating(3)">★3</button>
+      <button class="star-btn" onclick="submitRating(4)">★4</button>
+      <button class="star-btn" onclick="submitRating(5)">★5</button>
+    </div>
+    <div id="rating-result" style="font-size:1.1rem; color:var(--green); font-weight:bold; margin:10px 0;"></div>
+    <div class="flex-row" style="justify-content:center; margin-top:14px;">
+      <button onclick="saveCurrentFavorite()">⭐ このレシピを保存する</button>
+      <button class="secondary" onclick="goHome()">トップへ戻る</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ==========================================
+  // 1. 音源リスト設定（お持ちの42ファイルの日本語名そのまま）
+  // ==========================================
+  const BASE_FILES = [
+    'アスファルトの上を走る1.mp3',
+    'キーボード音.mp3',
+    'グラスにワインを注ぐ.mp3',
+    'たき火.mp3',
+    '海岸4.mp3',
+    '水ぶくぶく1.mp3',
+    '水滴がポタポタ.mp3',
+    '雪の上を歩く2.mp3'
+  ];
+
+  const ACCENT_FILES = [
+    'アタッシュケースを開ける.mp3',
+    'カードをきる1.mp3',
+    'カードを配る.mp3',
+    'キーボードの早打ち1.mp3',
+    'キーボードの早打ち2.mp3',
+    'クリック.mp3',
+    'ゲームコントローラー.mp3',
+    'シャーペンで字を書く.mp3',
+    'スマートフォンを落とす.mp3',
+    'タイプライター.mp3',
+    'ベルトを付ける.mp3',
+    'マッチの火を吹き消す.mp3',
+    'マッチ発火失敗.mp3',
+    '椅子に座る3.mp3',
+    '椅子を動かす1.mp3',
+    '缶蹴り.mp3',
+    '魚が水面で暴れる.mp3',
+    '鍵を落とす.mp3',
+    '碁石を打つ.mp3',
+    '黒板にチョークで字を書く.mp3',
+    '時計の針1.mp3',
+    '時計の針2.mp3',
+    '手で穴を掘る2.mp3',
+    '受話器を置く.mp3',
+    '将棋の駒を集める.mp3',
+    '振り子時計.mp3',
+    '振り子時計（エコー入り）.mp3',
+    '体をかく.mp3',
+    '天井照明をつける.mp3',
+    '電気のスイッチを入れる.mp3',
+    '布団に倒れ込む.mp3',
+    '木の棒を落とす.mp3',
+    '鈴が鳴る.mp3',
+    '賽銭を投げ入れる.mp3'
+  ];
+
+  const BASE_SOUNDS = BASE_FILES.map((filename, idx) => ({
+    id: `base_${idx + 1}`,
+    name: filename.replace(/\.mp3$/i, ''),
+    file: 'sounds/' + encodeURIComponent(filename),
+    isBase: true
+  }));
+
+  const ACCENT_SOUNDS = ACCENT_FILES.map((filename, idx) => ({
+    id: `one_${idx + 1}`,
+    name: filename.replace(/\.mp3$/i, ''),
+    file: 'sounds/' + encodeURIComponent(filename),
+    isBase: false
+  }));
+
+  // ==========================================
+  // 2. Web Audio API（クロスフェード・ループ＆安全音量管理）
+  // ==========================================
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.75;
+  masterGain.connect(audioCtx.destination);
+
+  const audioBufferCache = {};
+  const activeBaseLoops = {};
+
+  async function loadAudioBuffer(url, isBase) {
+    if (audioBufferCache[url]) return audioBufferCache[url];
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const arrayBuf = await res.arrayBuffer();
+      const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
+      audioBufferCache[url] = audioBuf;
+      return audioBuf;
+    } catch (e) {
+      console.warn('音源読み込みエラー（代替音を使用）:', decodeURIComponent(url), e);
+      return createFallbackBuffer(isBase);
+    }
+  }
+
+  function createFallbackBuffer(isBase) {
+    const duration = isBase ? 4.0 : 0.6;
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const t = i / audioCtx.sampleRate;
+      if (isBase) {
+        data[i] = (Math.random() * 2 - 1) * 0.08 * Math.sin((Math.PI * t) / duration);
+      } else {
+        data[i] = Math.sin(2 * Math.PI * 520 * t) * Math.exp(-6 * t) * 0.3;
+      }
+    }
+    return buf;
+  }
+
+  async function startCrossfadeLoop(soundObj, volume = 0.5) {
+    if (activeBaseLoops[soundObj.id]) return;
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+    const buffer = await loadAudioBuffer(soundObj.file, true);
+    const groupGain = audioCtx.createGain();
+    groupGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    groupGain.gain.linearRampToValueAtTime(volume * 0.7, audioCtx.currentTime + 1.5);
+    groupGain.connect(masterGain);
+
+    const fadeSec = Math.min(1.5, buffer.duration * 0.25);
+    let stopped = false;
+
+    function scheduleNext() {
+      if (stopped) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+
+      const envGain = audioCtx.createGain();
+      const now = audioCtx.currentTime;
+      envGain.gain.setValueAtTime(0.001, now);
+      envGain.gain.linearRampToValueAtTime(1.0, now + fadeSec);
+      envGain.gain.setValueAtTime(1.0, Math.max(now + fadeSec, now + buffer.duration - fadeSec));
+      envGain.gain.linearRampToValueAtTime(0.001, now + buffer.duration);
+
+      src.connect(envGain);
+      envGain.connect(groupGain);
+      src.start(now);
+
+      const nextDelay = Math.max(500, (buffer.duration - fadeSec) * 1000);
+      if (activeBaseLoops[soundObj.id]) {
+        activeBaseLoops[soundObj.id].timer = setTimeout(scheduleNext, nextDelay);
+      }
+    }
+
+    activeBaseLoops[soundObj.id] = {
+      gainNode: groupGain,
+      stop: () => {
+        stopped = true;
+        clearTimeout(activeBaseLoops[soundObj.id]?.timer);
+        const now = audioCtx.currentTime;
+        groupGain.gain.cancelScheduledValues(now);
+        groupGain.gain.setValueAtTime(groupGain.gain.value, now);
+        groupGain.gain.linearRampToValueAtTime(0.0001, now + 1.5);
+        setTimeout(() => groupGain.disconnect(), 1600);
+      }
+    };
+    scheduleNext();
+  }
+
+  function stopCrossfadeLoop(soundId) {
+    if (activeBaseLoops[soundId]) {
+      activeBaseLoops[soundId].stop();
+      delete activeBaseLoops[soundId];
+    }
+  }
+
+  function stopAllLoops() {
+    Object.keys(activeBaseLoops).forEach(id => stopCrossfadeLoop(id));
+  }
+
+  async function playOneShot(soundObj, isPreview = false) {
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    const buffer = await loadAudioBuffer(soundObj.file, soundObj.isBase);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buffer;
+
+    const gain = audioCtx.createGain();
+    gain.gain.value = isPreview ? 0.35 : 0.6;
+    src.connect(gain);
+    gain.connect(masterGain);
+
+    if (isPreview && buffer.duration > 3) {
+      const now = audioCtx.currentTime;
+      gain.gain.setValueAtTime(0.35, now + 2.2);
+      gain.gain.linearRampToValueAtTime(0.001, now + 3.0);
+      src.start(now);
+      src.stop(now + 3.0);
+    } else {
+      src.start();
+    }
+  }
+
+  // ==========================================
+  // 3. ステージ状態管理（最大2枠のベース音）
+  // ==========================================
+  let stageSlots = [];
+  let isSoloMode = false;
+
+  function syncStageAudioAndUI() {
+    const activeIds = stageSlots.map(s => s.id);
+
+    Object.keys(activeBaseLoops).forEach(id => {
+      if (!activeIds.includes(id)) stopCrossfadeLoop(id);
+    });
+
+    stageSlots.forEach(slot => {
+      const soundObj = BASE_SOUNDS.find(b => b.id === slot.id);
+      if (!soundObj) return;
+      if (!activeBaseLoops[slot.id]) {
+        startCrossfadeLoop(soundObj, slot.volume);
+      } else {
+        activeBaseLoops[slot.id].gainNode.gain.setTargetAtTime(slot.volume * 0.7, audioCtx.currentTime, 0.2);
+      }
+    });
+
+    for (let i = 0; i < 2; i++) {
+      const el = document.getElementById(`slot-${i}`);
+      const slot = stageSlots[i];
+      if (slot) {
+        el.classList.add('filled');
+        el.innerHTML = `<strong>🌊 ${slot.name}</strong><span style="font-size:0.8rem; color:var(--green);">音量 ${Math.round(slot.volume * 100)}%</span>`;
+      } else {
+        el.classList.remove('filled');
+        el.innerHTML = `空き枠 ${i + 1}`;
+      }
+    }
+
+    if (!isSoloMode && myAssignedSound && myAssignedSound.type === 'base') {
+      const isOn = stageSlots.some(s => s.id === myAssignedSound.sound.id && s.ownerId === myPeerId);
+      const btn = document.getElementById('btn-toggle-stage');
+      btn.innerText = isOn ? '⏹ ステージから下ろす（OFF）' : '✨ ステージに出す（ON）';
+      btn.className = isOn ? 'active-stage' : '';
+    }
+
+    if (isSoloMode) renderSoloGrid();
+  }
+
+  function triggerRipple(text) {
+    document.getElementById('live-log').innerText = text;
+    const vis = document.getElementById('visualizer');
+    const r = document.createElement('div');
+    r.className = 'ripple';
+    r.style.left = (20 + Math.random() * 60) + '%';
+    r.style.top = (20 + Math.random() * 60) + '%';
+    vis.appendChild(r);
+    setTimeout(() => r.remove(), 1900);
+  }
+
+  // ==========================================
+  // 4. マルチプレイ通信（PeerJS・最大10人）
+  // ==========================================
+  let peer = null;
+  let myPeerId = '';
+  let isHost = true;
+  let connections = [];
+  let hostConn = null;
+  let myAssignedSound = null;
+  let ratingsReceived = [];
+  let sessionTimerInt = null;
+
+  function showMultiLobby() {
+    isSoloMode = false;
+    switchView('view-lobby');
+    if (!peer) initPeer();
+  }
+
+  function initPeer() {
+    const rand = 'asmr-' + Math.floor(1000 + Math.random() * 9000);
+    peer = new Peer(rand);
+
+    peer.on('open', (id) => {
+      myPeerId = id;
+      document.getElementById('my-peer-id').innerText = id;
+    });
+
+    peer.on('connection', (conn) => {
+      if (connections.length >= 9) {
+        conn.close();
+        return;
+      }
+      connections.push(conn);
+      updateMemberCount();
+
+      conn.on('data', (data) => handleNetworkMessage(data, conn));
+      conn.on('close', () => {
+        connections = connections.filter(c => c !== conn);
+        updateMemberCount();
+      });
+    });
+  }
+
+  function joinRoom() {
+    const targetId = document.getElementById('join-peer-id').value.trim();
+    if (!targetId || targetId === myPeerId) return;
+    isHost = false;
+    document.getElementById('host-controls').classList.add('hidden');
+
+    hostConn = peer.connect(targetId);
+    hostConn.on('open', () => {
+      document.getElementById('lobby-members').innerText = `✅ ホスト（${targetId}）に接続完了！開始を待っています...`;
+    });
+    hostConn.on('data', (data) => handleNetworkMessage(data));
+  }
+
+  function updateMemberCount() {
+    const count = connections.length + 1;
+    document.getElementById('member-count').innerText = count;
+    broadcast({ type: 'member_count', count });
+  }
+
+  function broadcast(msg) {
+    connections.forEach(c => { if (c.open) c.send(msg); });
+  }
+
+  function sendToHost(msg) {
+    if (isHost) handleNetworkMessage(msg);
+    else if (hostConn && hostConn.open) hostConn.send(msg);
+  }
+
+  function hostStartSession() {
+    const duration = parseInt(document.getElementById('session-duration').value, 10);
+    const allMembers = [myPeerId, ...connections.map(c => c.peer)];
+
+    const shuffledBase = [...BASE_SOUNDS].sort(() => Math.random() - 0.5);
+    const shuffledAccent = [...ACCENT_SOUNDS].sort(() => Math.random() - 0.5);
+    const baseCount = Math.min(4, Math.max(2, Math.ceil(allMembers.length / 2)));
+
+    allMembers.forEach((memberId, idx) => {
+      const roleObj = idx < baseCount
+        ? { type: 'base', sound: shuffledBase[idx % shuffledBase.length] }
+        : { type: 'accent', sound: shuffledAccent[idx % shuffledAccent.length] };
+
+      if (memberId === myPeerId) {
+        beginMultiSession(roleObj, duration);
+      } else {
+        const conn = connections.find(c => c.peer === memberId);
+        if (conn) conn.send({ type: 'start_session', role: roleObj, duration });
+      }
+    });
+  }
+
+  function beginMultiSession(roleObj, duration) {
+    myAssignedSound = roleObj;
+    stageSlots = [];
+    ratingsReceived = [];
+    syncStageAudioAndUI();
+
+    document.getElementById('view-lobby').classList.add('hidden');
+    document.getElementById('view-rating').classList.add('hidden');
+    document.getElementById('view-stage').classList.remove('hidden');
+    document.getElementById('view-multi-pad').classList.remove('hidden');
+
+    document.getElementById('mode-badge').innerText = '👥 みんなで調合中';
+    if (roleObj.type === 'base') {
+      document.getElementById('my-role-badge').innerText = '🌊 環境ベース担当（最大2枠）';
+      document.getElementById('my-sound-title').innerText = roleObj.sound.name;
+      document.getElementById('ctrl-base').classList.remove('hidden');
+      document.getElementById('ctrl-accent').classList.add('hidden');
+    } else {
+      document.getElementById('my-role-badge').innerText = '💧 アクセント単発担当';
+      document.getElementById('my-sound-title').innerText = roleObj.sound.name;
+      document.getElementById('ctrl-base').classList.add('hidden');
+      document.getElementById('ctrl-accent').classList.remove('hidden');
+    }
+
+    let remain = duration;
+    document.getElementById('timer-display').innerText = `残り ${remain}秒`;
+    clearInterval(sessionTimerInt);
+    sessionTimerInt = setInterval(() => {
+      remain--;
+      document.getElementById('timer-display').innerText = `残り ${remain}秒`;
+      if (remain <= 0) {
+        clearInterval(sessionTimerInt);
+        endMultiSession();
+      }
+    }, 1000);
+  }
+
+  function endMultiSession() {
+    document.getElementById('view-multi-pad').classList.add('hidden');
+    document.getElementById('view-rating').classList.remove('hidden');
+    document.getElementById('mode-badge').innerText = '✨ 完成レシピ試聴中';
+    triggerRipple('調合タイム終了！完成した音を聴きながら採点してください');
+  }
+
+  function handleNetworkMessage(data) {
+    if (data.type === 'member_count') {
+      document.getElementById('lobby-members').innerText = `現在の参加者: ${data.count} / 10人`;
+    } else if (data.type === 'start_session') {
+      beginMultiSession(data.role, data.duration);
+    } else if (data.type === 'toggle_base' && isHost) {
+      const existIdx = stageSlots.findIndex(s => s.id === data.sound.id && s.ownerId === data.ownerId);
+      if (existIdx >= 0) {
+        stageSlots.splice(existIdx, 1);
+      } else {
+        if (stageSlots.length >= 2) stageSlots.shift();
+        stageSlots.push({ id: data.sound.id, name: data.sound.name, ownerId: data.ownerId, volume: data.volume });
+      }
+      syncStageAudioAndUI();
+      triggerRipple(`🌊 「${data.sound.name}」がステージを更新しました`);
+      broadcast({ type: 'sync_stage', stageSlots, log: `🌊 「${data.sound.name}」がステージを更新しました` });
+    } else if (data.type === 'update_vol' && isHost) {
+      const target = stageSlots.find(s => s.id === data.soundId && s.ownerId === data.ownerId);
+      if (target) {
+        target.volume = data.volume;
+        syncStageAudioAndUI();
+        broadcast({ type: 'sync_stage', stageSlots });
+      }
+    } else if (data.type === 'sync_stage') {
+      stageSlots = data.stageSlots;
+      syncStageAudioAndUI();
+      if (data.log) triggerRipple(data.log);
+    } else if (data.type === 'fire_accent') {
+      if (isHost) broadcast(data);
+      playOneShot(data.sound, false);
+      triggerRipple(`💧 「${data.sound.name}」が響きました`);
+    } else if (data.type === 'rating' && isHost) {
+      ratingsReceived.push(data.score);
+      const avg = (ratingsReceived.reduce((a, b) => a + b, 0) / ratingsReceived.length).toFixed(1);
+      const msg = `みんなの癒やし度平均: ★ ${avg} （${ratingsReceived.length}人投票）`;
+      document.getElementById('rating-result').innerText = msg;
+      broadcast({ type: 'rating_result', msg });
+    } else if (data.type === 'rating_result') {
+      document.getElementById('rating-result').innerText = data.msg;
+    }
+  }
+
+  function previewMySound() {
+    if (!myAssignedSound) return;
+    playOneShot(myAssignedSound.sound, true);
+    triggerRipple(`🎧 自分だけ試聴中: ${myAssignedSound.sound.name}`);
+  }
+
+  function toggleMyBaseStage() {
+    const vol = document.getElementById('my-base-vol').value / 100;
+    sendToHost({
+      type: 'toggle_base',
+      sound: myAssignedSound.sound,
+      ownerId: myPeerId,
+      volume: vol
+    });
+  }
+
+  function updateMyBaseVolume(val) {
+    document.getElementById('my-base-vol-label').innerText = val;
+    sendToHost({
+      type: 'update_vol',
+      soundId: myAssignedSound.sound.id,
+      ownerId: myPeerId,
+      volume: val / 100
+    });
+  }
+
+  function fireMyAccent() {
+    const btn = document.getElementById('btn-fire-accent');
+    btn.disabled = true;
+    sendToHost({ type: 'fire_accent', sound: myAssignedSound.sound });
+
+    let cd = 3;
+    btn.innerText = `余韻中... (${cd}s)`;
+    const int = setInterval(() => {
+      cd--;
+      if (cd <= 0) {
+        clearInterval(int);
+        btn.disabled = false;
+        btn.innerText = '💧 みんなに鳴らす';
+      } else {
+        btn.innerText = `余韻中... (${cd}s)`;
+      }
+    }, 1000);
+  }
+
+  function submitRating(score) {
+    sendToHost({ type: 'rating', score });
+    document.getElementById('rating-result').innerText = `★${score} で投票しました！集計中...`;
+  }
+
+  // ==========================================
+  // 5. ソロ（おやすみ）モード ＆ 自動ランダムアクセント
+  // ==========================================
+  let autoAccentTimer = null;
+
+  function startSoloMode(presetSlots = null) {
+    isSoloMode = true;
+    stageSlots = presetSlots ? JSON.parse(JSON.stringify(presetSlots)) : [];
+    syncStageAudioAndUI();
+
+    document.getElementById('view-home').classList.add('hidden');
+    document.getElementById('view-stage').classList.remove('hidden');
+    document.getElementById('view-solo-mixer').classList.remove('hidden');
+    document.getElementById('mode-badge').innerText = '🌙 1人でおやすみモード';
+    document.getElementById('timer-display').innerText = 'エンドレス再生';
+    renderSoloGrid();
+  }
+
+  function renderSoloGrid() {
+    const baseGrid = document.getElementById('solo-base-grid');
+    baseGrid.innerHTML = '';
+    BASE_SOUNDS.forEach(s => {
+      const activeSlot = stageSlots.find(slot => slot.id === s.id);
+      const div = document.createElement('div');
+      div.className = 'sound-item';
+      div.innerHTML = `
+        <strong>${s.name}</strong>
+        <button class="${activeSlot ? 'active-stage' : 'secondary'}" onclick="toggleSoloBase('${s.id}')">
+          ${activeSlot ? '再生中 (OFFにする)' : '追加 (ON)'}
+        </button>
+        ${activeSlot ? `<input type="range" min="10" max="80" value="${activeSlot.volume * 100}" oninput="setSoloVol('${s.id}', this.value)">` : ''}
+      `;
+      baseGrid.appendChild(div);
+    });
+
+    const accGrid = document.getElementById('solo-accent-grid');
+    if (accGrid.children.length === 0) {
+      ACCENT_SOUNDS.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'secondary';
+        btn.style.fontSize = '0.8rem';
+        btn.style.padding = '8px';
+        btn.innerText = `💧 ${s.name}`;
+        btn.onclick = () => {
+          playOneShot(s, false);
+          triggerRipple(`💧 ${s.name}`);
+        };
+        accGrid.appendChild(btn);
+      });
+    }
+  }
+
+  function toggleSoloBase(soundId) {
+    const idx = stageSlots.findIndex(s => s.id === soundId);
+    if (idx >= 0) {
+      stageSlots.splice(idx, 1);
+    } else {
+      if (stageSlots.length >= 2) stageSlots.shift();
+      const s = BASE_SOUNDS.find(b => b.id === soundId);
+      stageSlots.push({ id: s.id, name: s.name, ownerId: 'solo', volume: 0.5 });
+    }
+    syncStageAudioAndUI();
+  }
+
+  function setSoloVol(soundId, val) {
+    const slot = stageSlots.find(s => s.id === soundId);
+    if (slot) {
+      slot.volume = val / 100;
+      syncStageAudioAndUI();
+    }
+  }
+
+  function toggleAutoAccent(enabled) {
+    clearInterval(autoAccentTimer);
+    if (enabled) {
+      autoAccentTimer = setInterval(() => {
+        const randSound = ACCENT_SOUNDS[Math.floor(Math.random() * ACCENT_SOUNDS.length)];
+        playOneShot(randSound, false);
+        triggerRipple(`💧 自動アクセント: ${randSound.name}`);
+      }, 6500);
+    }
+  }
+
+  // ==========================================
+  // 6. おやすみタイマー（最後の1分でフェードアウト）＆ お気に入り保存
+  // ==========================================
+  let sleepTimeout = null;
+
+  function setSleepTimer(minutes) {
+    clearTimeout(sleepTimeout);
+    const min = parseInt(minutes, 10);
+    const statusEl = document.getElementById('sleep-timer-status');
+    if (min <= 0) {
+      statusEl.innerText = '';
+      masterGain.gain.setValueAtTime(0.75, audioCtx.currentTime);
+      return;
+    }
+    statusEl.innerText = `${min}分後にゆっくり停止します`;
+    const fadeStartMs = Math.max(1000, (min - 1) * 60 * 1000);
+    sleepTimeout = setTimeout(() => {
+      const now = audioCtx.currentTime;
+      masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+      masterGain.gain.linearRampToValueAtTime(0.0001, now + 60);
+      setTimeout(() => {
+        stopAllLoops();
+        toggleAutoAccent(false);
+        statusEl.innerText = 'おやすみなさい 💤';
+      }, 60500);
+    }, fadeStartMs);
+  }
+
+  function saveCurrentFavorite() {
+    if (stageSlots.length === 0) {
+      alert('ステージに環境ベース音が1つ以上入っている状態で保存してください！');
+      return;
+    }
+    const defaultName = stageSlots.map(s => s.name).join(' × ');
+    const title = prompt('お気に入りレシピの名前を入力してください:', defaultName);
+    if (!title) return;
+
+    const list = JSON.parse(localStorage.getItem('asmr_favorites') || '[]');
+    list.push({ id: Date.now(), title, slots: stageSlots });
+    localStorage.setItem('asmr_favorites', JSON.stringify(list));
+    alert('お気に入りに保存しました！');
+    renderFavorites();
+  }
+
+  function renderFavorites() {
+    const list = JSON.parse(localStorage.getItem('asmr_favorites') || '[]');
+    const container = document.getElementById('favorite-list');
+    if (list.length === 0) {
+      container.innerHTML = 'まだ保存されたレシピはありません';
+      return;
+    }
+    container.innerHTML = '';
+    list.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'flex-row';
+      div.style.justifyContent = 'space-between';
+      div.style.background = 'var(--card-sub)';
+      div.style.padding = '10px 12px';
+      div.style.borderRadius = '10px';
+      div.style.marginBottom = '8px';
+      div.innerHTML = `
+        <div>
+          <strong>${item.title}</strong>
+          <div style="font-size:0.78rem; color:var(--muted);">${item.slots.map(s => `${s.name}(${Math.round(s.volume*100)}%)`).join(' + ')}</div>
+        </div>
+        <div class="flex-row">
+          <button class="green" style="padding:6px 12px; font-size:0.85rem;" onclick='playFavorite(${JSON.stringify(item.slots)})'>▶ 聴く</button>
+          <button class="secondary" style="padding:6px 10px; font-size:0.8rem;" onclick="deleteFavorite(${item.id})">削除</button>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function playFavorite(slots) {
+    startSoloMode(slots);
+  }
+
+  function deleteFavorite(id) {
+    let list = JSON.parse(localStorage.getItem('asmr_favorites') || '[]');
+    list = list.filter(i => i.id !== id);
+    localStorage.setItem('asmr_favorites', JSON.stringify(list));
+    renderFavorites();
+  }
+
+  function switchView(showId) {
+    ['view-home', 'view-lobby', 'view-stage', 'view-multi-pad', 'view-solo-mixer', 'view-rating'].forEach(id => {
+      document.getElementById(id).classList.add('hidden');
+    });
+    document.getElementById(showId).classList.remove('hidden');
+  }
+
+  function goHome() {
+    clearInterval(sessionTimerInt);
+    toggleAutoAccent(false);
+    stopAllLoops();
+    renderFavorites();
+    switchView('view-home');
+  }
+
+  renderFavorites();
+</script>
+</body>
+</html>
