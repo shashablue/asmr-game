@@ -188,6 +188,45 @@
       gap: 10px;
       font-size: 0.85rem;
     }
+
+    /* 保存前確認モーダル */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 10, 18, 0.82);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: var(--card);
+      border: 1px solid #353b5c;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 18px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+    }
+    .modal-section {
+      background: var(--card-sub);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+    .check-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #303652;
+      font-size: 0.86rem;
+    }
+    .check-row:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
@@ -258,7 +297,6 @@
 
   <!-- 3. 共通ステージ（今鳴っている音＆波紋） -->
   <div id="view-stage" class="card hidden">
-    <!-- リロード復元時の音声再開バナー -->
     <div id="resume-audio-banner" class="resume-banner hidden">
       <span>🔄 画面を更新しました。音をもう一度鳴らしますか？</span>
       <button class="green" style="padding:6px 12px; font-size:0.82rem; white-space:nowrap;" onclick="resumeAudioAfterReload()">▶ 音を再開する</button>
@@ -298,11 +336,11 @@
         </select>
         <span id="sleep-timer-status" style="font-size:0.8rem; color:var(--green);"></span>
       </div>
-      <button class="secondary" style="padding:8px 12px; font-size:0.85rem;" onclick="saveCurrentFavorite()">⭐ この組み合わせを保存</button>
+      <button class="secondary" style="padding:8px 12px; font-size:0.85rem;" onclick="openSaveConfirmModal()">⭐ この組み合わせを保存</button>
     </div>
   </div>
 
-  <!-- 4A. マルチプレイ用：自分の手持ちカード一覧（複数選択可） -->
+  <!-- 4A. マルチプレイ用：自分の手持ちカード一覧 -->
   <div id="view-multi-pad" class="card hidden">
     <div class="flex-row" style="justify-content:space-between; margin-bottom:8px;">
       <div>
@@ -312,7 +350,6 @@
       <button class="secondary" style="font-size:0.82rem; padding:6px 12px;" onclick="rerollMyHand()">🔄 手持ちを入れ替え</button>
     </div>
 
-    <!-- ベース担当の操作（4種類から選べる） -->
     <div id="ctrl-base" class="hidden">
       <p style="font-size:0.85rem; color:var(--muted); margin:4px 0 10px;">
         手持ちの4音から好きな音を選んでステージに出せます（全体で最大2枠まで同時再生）
@@ -324,10 +361,9 @@
       <div class="sound-grid" id="multi-base-grid"></div>
     </div>
 
-    <!-- アクセント単発担当の操作（8種類から選べる） -->
     <div id="ctrl-accent" class="hidden">
       <p style="font-size:0.85rem; color:var(--muted); margin:4px 0 10px;">
-        手持ちの8音から好きな音を選んで鳴らせます（押したタイミングも記録されます・3秒クールタイム付き）
+        手持ちの8音（全42種から選出）を選んで鳴らせます（押したタイミングも記録・3秒クールタイム付き）
       </p>
       <div id="accent-cooldown-bar" style="font-size:0.85rem; color:var(--green); font-weight:bold; min-height:22px;"></div>
       <div class="sound-grid" id="multi-accent-grid"></div>
@@ -337,7 +373,7 @@
   <!-- 4B. ソロ（おやすみ）モード用：全42音ミキサー -->
   <div id="view-solo-mixer" class="card hidden">
     <div class="flex-row" style="justify-content:space-between; margin-bottom:6px;">
-      <h4 style="margin:0;">🌊 環境ベース音（8種・最大2つ）</h4>
+      <h4 style="margin:0;">🌊 環境ベース音（8種・最大2つ連続再生）</h4>
       <label style="font-size:0.82rem; color:var(--muted);">
         ループ周期:
         <select id="solo-loop-duration" style="padding:4px 8px; font-size:0.82rem;" onchange="changeSoloLoopDuration(this.value)">
@@ -352,7 +388,7 @@
 
     <div class="flex-row" style="margin:18px 0 6px; justify-content:space-between;">
       <div>
-        <h4 style="margin:0;">💧 アクセント単発音（34種）</h4>
+        <h4 style="margin:0;">💧 アクセント単発音（全42種・環境音8種も含む）</h4>
         <div style="font-size:0.76rem; color:var(--muted);">「試聴」は確認のみ、「鳴らす」でタイミングをリズム記録</div>
       </div>
       <div class="flex-row" style="gap:10px;">
@@ -382,16 +418,57 @@
     </div>
     <div id="rating-result" style="font-size:1.05rem; color:var(--green); font-weight:bold; margin:10px 0;"></div>
     <div class="flex-row" style="justify-content:center; margin-top:14px;">
-      <button onclick="saveCurrentFavorite()">⭐ このレシピ（リズム含む）を保存する</button>
+      <button onclick="openSaveConfirmModal()">⭐ このレシピを確認して保存</button>
       <button class="secondary" onclick="goHome()">トップへ戻る</button>
     </div>
   </div>
 
 </div>
 
+<!-- 6. 保存前の内容確認・編集モーダル -->
+<div id="save-confirm-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="flex-row" style="justify-content:space-between;">
+      <h3 style="margin:0;">⭐ 保存内容の確認・調整</h3>
+      <button class="secondary" style="padding:4px 10px; font-size:0.85rem;" onclick="closeSaveConfirmModal()">✕ 閉じる</button>
+    </div>
+    <p style="font-size:0.82rem; color:var(--muted); margin:6px 0 12px;">
+      途中でOFFにした環境ベース音も履歴から復元して含めることができます（最大2つまで）。
+    </p>
+
+    <div>
+      <label style="font-size:0.85rem; font-weight:bold;">レシピ名:</label>
+      <input type="text" id="confirm-recipe-title" style="width:100%; margin-top:4px;" placeholder="例：雨音とたき火の夜">
+    </div>
+
+    <div class="modal-section">
+      <div style="font-size:0.85rem; font-weight:bold; margin-bottom:6px;">
+        🌊 含める環境ベース音（最大2つまで選択可）
+      </div>
+      <div id="confirm-base-list" style="font-size:0.85rem; color:var(--muted);"></div>
+    </div>
+
+    <div class="modal-section">
+      <div class="flex-row" style="justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:0.85rem; font-weight:bold;">💧 単発リズム（<span id="confirm-loop-sec">60</span>秒周期）</span>
+        <label style="font-size:0.8rem; cursor:pointer;">
+          <input type="checkbox" id="confirm-include-accents" checked onchange="toggleConfirmAccentsVisibility(this.checked)">
+          リズムを保存に含める
+        </label>
+      </div>
+      <div id="confirm-accent-list" style="max-height:150px; overflow-y:auto; font-size:0.82rem; color:var(--muted);"></div>
+    </div>
+
+    <div class="flex-row" style="justify-content:flex-end; margin-top:16px;">
+      <button class="secondary" onclick="closeSaveConfirmModal()">キャンセル</button>
+      <button class="green" onclick="confirmAndSaveFavorite()">✅ この内容で保存する</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ==========================================
-  // 1. 音源リスト設定（42ファイル）
+  // 1. 音源リスト設定（42ファイル・ベース8種も単発リストへ統合）
   // ==========================================
   const BASE_FILES = [
     'アスファルトの上を走る1.mp3',
@@ -404,7 +481,7 @@
     '雪の上を歩く2.mp3'
   ];
 
-  const ACCENT_FILES = [
+  const ACCENT_ONLY_FILES = [
     'アタッシュケースを開ける.mp3',
     'カードをきる1.mp3',
     'カードを配る.mp3',
@@ -449,13 +526,24 @@
     isBase: true
   }));
 
-  const ACCENT_SOUNDS = ACCENT_FILES.map((filename, idx) => ({
-    id: `one_${idx + 1}`,
-    name: filename.replace(/\.mp3$/i, ''),
-    rawFilename: filename,
-    file: 'sounds/' + encodeURIComponent(filename),
-    isBase: false
-  }));
+  // 単発音リストは「専用34種 + 環境ベース8種 = 全42種」
+  const ACCENT_SOUNDS = [
+    ...ACCENT_ONLY_FILES.map((filename, idx) => ({
+      id: `one_${idx + 1}`,
+      name: filename.replace(/\.mp3$/i, ''),
+      rawFilename: filename,
+      file: 'sounds/' + encodeURIComponent(filename),
+      isBase: false
+    })),
+    ...BASE_FILES.map((filename, idx) => ({
+      id: `one_base_${idx + 1}`,
+      name: `${filename.replace(/\.mp3$/i, '')}（単発）`,
+      rawFilename: filename,
+      file: 'sounds/' + encodeURIComponent(filename),
+      isBase: false,
+      isLongEnvAsOneShot: true
+    }))
+  ];
 
   // ==========================================
   // 2. Web Audio API（完全停止＆クロスフェード・ループ）
@@ -477,7 +565,7 @@
   }
 
   async function loadAudioBuffer(soundObj) {
-    const cacheKey = soundObj.id;
+    const cacheKey = soundObj.rawFilename;
     if (audioBufferCache[cacheKey]) return audioBufferCache[cacheKey];
 
     const raw = soundObj.rawFilename;
@@ -529,7 +617,6 @@
     activeBaseLoops[soundObj.id] = loopState;
 
     const buffer = await loadAudioBuffer(soundObj);
-    // 読み込み待機中に停止されていた場合はここで中断
     if (loopState.stopped || activeBaseLoops[soundObj.id] !== loopState) {
       return;
     }
@@ -608,7 +695,8 @@
     src.buffer = buffer;
 
     const gain = audioCtx.createGain();
-    gain.gain.value = isPreview ? 0.35 : 0.6;
+    const targetVol = isPreview ? 0.35 : 0.6;
+    gain.gain.value = targetVol;
     src.connect(gain);
     gain.connect(masterGain);
 
@@ -617,23 +705,32 @@
       activeOneShotSources = activeOneShotSources.filter(s => s !== src);
     };
 
-    if (isPreview && buffer.duration > 3) {
-      const now = audioCtx.currentTime;
-      gain.gain.setValueAtTime(0.35, now + 2.2);
+    const now = audioCtx.currentTime;
+    // 試聴時、または長い環境音を単発として鳴らす場合は3.5秒前後で滑らかにフェードアウト
+    if (isPreview && buffer.duration > 3.0) {
+      gain.gain.setValueAtTime(targetVol, now + 2.2);
       gain.gain.linearRampToValueAtTime(0.001, now + 3.0);
       src.start(now);
       src.stop(now + 3.0);
+    } else if (soundObj.isLongEnvAsOneShot && buffer.duration > 3.8) {
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(targetVol, now + 0.3);
+      gain.gain.setValueAtTime(targetVol, now + 2.5);
+      gain.gain.linearRampToValueAtTime(0.001, now + 3.6);
+      src.start(now);
+      src.stop(now + 3.6);
     } else {
-      src.start();
+      src.start(now);
     }
   }
 
   // ==========================================
-  // 3. ステージ状態・単発タイムライン・リロード保護
+  // 3. ステージ状態・ベース使用履歴・リロード保護
   // ==========================================
   let stageSlots = [];
+  let usedBaseHistory = []; // 途中でOFFにしたベース音も保存時に選べるよう履歴保持
   let isSoloMode = false;
-  let currentAppState = 'home'; // 'home' | 'lobby' | 'multi_session' | 'multi_rating' | 'solo'
+  let currentAppState = 'home';
 
   let sessionStartTime = 0;
   let sessionLoopDurationMs = 60000;
@@ -641,7 +738,19 @@
   let timelineTimers = [];
   let timelineLoopInterval = null;
 
-  // ブラウザ更新・離脱時の保護（ロビー・マルチセッション中は警告）
+  function recordUsedBase(slotObj) {
+    const idx = usedBaseHistory.findIndex(item => item.id === slotObj.id);
+    if (idx >= 0) {
+      usedBaseHistory[idx].volume = slotObj.volume;
+    } else {
+      usedBaseHistory.push({
+        id: slotObj.id,
+        name: slotObj.name,
+        volume: slotObj.volume
+      });
+    }
+  }
+
   window.addEventListener('beforeunload', (e) => {
     if (currentAppState === 'lobby' || currentAppState === 'multi_session') {
       e.preventDefault();
@@ -649,12 +758,12 @@
     }
   });
 
-  // 作業中状態を sessionStorage へ保存
   function saveSessionBackup() {
     if (currentAppState === 'solo' || currentAppState === 'multi_rating') {
       const backup = {
         state: currentAppState,
         slots: stageSlots,
+        history: usedBaseHistory,
         accents: recordedAccents,
         loopDurationMs: sessionLoopDurationMs,
         ratingText: document.getElementById('rating-result').innerText
@@ -744,6 +853,7 @@
     });
 
     stageSlots.forEach(slot => {
+      recordUsedBase(slot);
       const soundObj = BASE_SOUNDS.find(b => b.id === slot.id);
       if (!soundObj) return;
       if (!activeBaseLoops[slot.id]) {
@@ -914,6 +1024,7 @@
     myAssignedRole = roleObj;
     isAccentCooldown = false;
     stageSlots = [];
+    usedBaseHistory = [];
     ratingsReceived = [];
     recordedAccents = [];
     sessionStartTime = Date.now();
@@ -1126,6 +1237,9 @@
     currentAppState = 'solo';
     stopTimelineLoop();
     stageSlots = preset && preset.slots ? JSON.parse(JSON.stringify(preset.slots)) : [];
+    usedBaseHistory = preset && preset.history
+      ? JSON.parse(JSON.stringify(preset.history))
+      : JSON.parse(JSON.stringify(stageSlots));
     recordedAccents = preset && preset.accents ? JSON.parse(JSON.stringify(preset.accents)) : [];
     sessionLoopDurationMs = preset && preset.loopDurationMs ? preset.loopDurationMs : 60000;
     sessionStartTime = 0;
@@ -1165,7 +1279,6 @@
   function changeSoloLoopDuration(secStr) {
     const sec = parseInt(secStr, 10);
     sessionLoopDurationMs = sec * 1000;
-    // 新しい秒数を超える古い記録はカットして整合性を保つ
     recordedAccents = recordedAccents.filter(ev => ev.offsetMs < sessionLoopDurationMs);
     updateRecordedCountUI();
     if (document.getElementById('replay-timeline-chk').checked && recordedAccents.length > 0) {
@@ -1235,7 +1348,13 @@
     } else {
       if (stageSlots.length >= 2) stageSlots.shift();
       const s = BASE_SOUNDS.find(b => b.id === soundId);
-      stageSlots.push({ id: s.id, name: s.name, ownerId: 'solo', volume: 0.5 });
+      const prevHist = usedBaseHistory.find(h => h.id === soundId);
+      stageSlots.push({
+        id: s.id,
+        name: s.name,
+        ownerId: 'solo',
+        volume: prevHist ? prevHist.volume : 0.5
+      });
     }
     syncStageAudioAndUI();
   }
@@ -1260,10 +1379,170 @@
   }
 
   // ==========================================
-  // 6. おやすみタイマー ＆ お気に入り保存（上限30件・名前変更）
+  // 6. 保存前確認モーダル ＆ お気に入り保存（上限30件・名前変更）
   // ==========================================
   const MAX_FAVORITES = 30;
   let sleepTimeout = null;
+
+  function openSaveConfirmModal() {
+    const list = JSON.parse(localStorage.getItem('asmr_favorites') || '[]');
+    if (list.length >= MAX_FAVORITES) {
+      alert(`お気に入りの保存上限（${MAX_FAVORITES}件）に達しています。\nトップ画面から不要なレシピを削除してから保存してください。`);
+      return;
+    }
+
+    if (stageSlots.length === 0 && usedBaseHistory.length === 0 && recordedAccents.length === 0) {
+      alert('ベース音または単発音の記録がある状態で保存してください！');
+      return;
+    }
+
+    // 候補となるベース音一覧（現在再生中 + 途中で使った履歴）
+    const candidateBases = [...usedBaseHistory];
+    stageSlots.forEach(s => {
+      if (!candidateBases.some(c => c.id === s.id)) {
+        candidateBases.push({ id: s.id, name: s.name, volume: s.volume });
+      }
+    });
+
+    // 初期チェック状態：現在再生中の音はON。もし現在再生中が0個なら履歴の直近2つを自動ON
+    const activeIds = stageSlots.map(s => s.id);
+    const defaultCheckedIds = activeIds.length > 0
+      ? activeIds
+      : candidateBases.slice(-2).map(b => b.id);
+
+    const baseListEl = document.getElementById('confirm-base-list');
+    if (candidateBases.length === 0) {
+      baseListEl.innerHTML = '使用された環境ベース音はありません';
+    } else {
+      baseListEl.innerHTML = '';
+      candidateBases.forEach(b => {
+        const isChecked = defaultCheckedIds.includes(b.id);
+        const isCurrentlyPlaying = activeIds.includes(b.id);
+        const row = document.createElement('div');
+        row.className = 'check-row';
+        row.innerHTML = `
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; flex:1;">
+            <input type="checkbox" class="confirm-base-chk" value="${b.id}" data-name="${b.name}" ${isChecked ? 'checked' : ''} onchange="limitConfirmBaseCheck(this)">
+            <span>🌊 ${b.name}</span>
+            <span style="font-size:0.72rem; color:${isCurrentlyPlaying ? 'var(--green)' : 'var(--muted)'};">
+              ${isCurrentlyPlaying ? '（再生中）' : '（途中で使用）'}
+            </span>
+          </label>
+          <div style="display:flex; align-items:center; gap:6px; width:130px;">
+            <input type="range" class="confirm-base-vol" data-id="${b.id}" min="10" max="80" value="${Math.round(b.volume * 100)}" oninput="this.nextElementSibling.innerText = this.value + '%'">
+            <span style="font-size:0.76rem; width:34px;">${Math.round(b.volume * 100)}%</span>
+          </div>
+        `;
+        baseListEl.appendChild(row);
+      });
+    }
+
+    // 単発リズム確認リスト
+    document.getElementById('confirm-loop-sec').innerText = Math.round(sessionLoopDurationMs / 1000);
+    const includeAccChk = document.getElementById('confirm-include-accents');
+    const accListEl = document.getElementById('confirm-accent-list');
+
+    if (recordedAccents.length === 0) {
+      includeAccChk.checked = false;
+      includeAccChk.disabled = true;
+      accListEl.innerHTML = '記録された単発リズムはありません';
+    } else {
+      includeAccChk.checked = true;
+      includeAccChk.disabled = false;
+      accListEl.classList.remove('hidden');
+      accListEl.innerHTML = '';
+      recordedAccents.forEach((ev, idx) => {
+        const sec = (ev.offsetMs / 1000).toFixed(1);
+        const row = document.createElement('div');
+        row.className = 'check-row';
+        row.innerHTML = `
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" class="confirm-acc-chk" value="${idx}" checked>
+            <span>${sec}秒目：💧 ${ev.sound.name}</span>
+          </label>
+        `;
+        accListEl.appendChild(row);
+      });
+    }
+
+    // デフォルトレシピ名の生成
+    const checkedBases = candidateBases.filter(b => defaultCheckedIds.includes(b.id));
+    const baseTitle = checkedBases.length > 0 ? checkedBases.map(b => b.name).join(' × ') : '単発リズムのみ';
+    const defaultName = recordedAccents.length > 0 ? `${baseTitle}（単発${recordedAccents.length}音）` : baseTitle;
+    document.getElementById('confirm-recipe-title').value = defaultName;
+
+    document.getElementById('save-confirm-modal').classList.remove('hidden');
+  }
+
+  function limitConfirmBaseCheck(changedChk) {
+    const checked = document.querySelectorAll('.confirm-base-chk:checked');
+    if (checked.length > 2) {
+      changedChk.checked = false;
+      alert('環境ベース音は最大2つまで選択できます。');
+    }
+  }
+
+  function toggleConfirmAccentsVisibility(enabled) {
+    const accListEl = document.getElementById('confirm-accent-list');
+    if (enabled) accListEl.classList.remove('hidden');
+    else accListEl.classList.add('hidden');
+  }
+
+  function closeSaveConfirmModal() {
+    document.getElementById('save-confirm-modal').classList.add('hidden');
+  }
+
+  function confirmAndSaveFavorite() {
+    const list = JSON.parse(localStorage.getItem('asmr_favorites') || '[]');
+    if (list.length >= MAX_FAVORITES) {
+      alert(`お気に入りの保存上限（${MAX_FAVORITES}件）に達しています。`);
+      return;
+    }
+
+    const title = document.getElementById('confirm-recipe-title').value.trim();
+    if (!title) {
+      alert('レシピ名を入力してください！');
+      return;
+    }
+
+    // 選択されたベース音と音量を取得
+    const selectedSlots = [];
+    document.querySelectorAll('.confirm-base-chk:checked').forEach(chk => {
+      const id = chk.value;
+      const name = chk.dataset.name;
+      const volEl = document.querySelector(`.confirm-base-vol[data-id="${id}"]`);
+      const volume = volEl ? parseInt(volEl.value, 10) / 100 : 0.5;
+      selectedSlots.push({ id, name, ownerId: 'solo', volume });
+    });
+
+    // 選択された単発リズムを取得
+    let selectedAccents = [];
+    if (document.getElementById('confirm-include-accents').checked) {
+      document.querySelectorAll('.confirm-acc-chk:checked').forEach(chk => {
+        const idx = parseInt(chk.value, 10);
+        if (recordedAccents[idx]) {
+          selectedAccents.push(recordedAccents[idx]);
+        }
+      });
+    }
+
+    if (selectedSlots.length === 0 && selectedAccents.length === 0) {
+      alert('ベース音または単発リズムを1つ以上選択してください！');
+      return;
+    }
+
+    list.push({
+      id: Date.now(),
+      title,
+      slots: selectedSlots,
+      accents: selectedAccents,
+      loopDurationMs: sessionLoopDurationMs
+    });
+    localStorage.setItem('asmr_favorites', JSON.stringify(list));
+    closeSaveConfirmModal();
+    renderFavorites();
+    alert(`「${title}」をお気に入りに保存しました！（${list.length} / ${MAX_FAVORITES}件）`);
+  }
 
   function setSleepTimer(minutes) {
     clearTimeout(sleepTimeout);
@@ -1287,34 +1566,6 @@
         statusEl.innerText = 'おやすみなさい 💤';
       }, 60500);
     }, fadeStartMs);
-  }
-
-  function saveCurrentFavorite() {
-    const list = JSON.parse(localStorage.getItem('asmr_favorites') || '[]');
-    if (list.length >= MAX_FAVORITES) {
-      alert(`お気に入りの保存上限（${MAX_FAVORITES}件）に達しています。\nトップ画面から不要なレシピを削除してから保存してください。`);
-      return;
-    }
-
-    if (stageSlots.length === 0 && recordedAccents.length === 0) {
-      alert('ベース音または単発音の記録がある状態で保存してください！');
-      return;
-    }
-    const baseTitle = stageSlots.length > 0 ? stageSlots.map(s => s.name).join(' × ') : '単発リズムのみ';
-    const defaultName = recordedAccents.length > 0 ? `${baseTitle}（単発${recordedAccents.length}音）` : baseTitle;
-    const title = prompt('お気に入りレシピの名前を入力してください:', defaultName);
-    if (!title || !title.trim()) return;
-
-    list.push({
-      id: Date.now(),
-      title: title.trim(),
-      slots: stageSlots,
-      accents: recordedAccents,
-      loopDurationMs: sessionLoopDurationMs
-    });
-    localStorage.setItem('asmr_favorites', JSON.stringify(list));
-    alert(`お気に入りに保存しました！（${list.length} / ${MAX_FAVORITES}件）`);
-    renderFavorites();
   }
 
   function renameFavorite(id) {
@@ -1396,12 +1647,13 @@
     currentAppState = 'home';
     isSoloMode = false;
     clearSessionBackup();
+    closeSaveConfirmModal();
 
-    // すべてのタイマー・ループ・音量を即時完全停止
     clearInterval(sessionTimerInt);
     clearTimeout(sleepTimeout);
     sessionStartTime = 0;
     stageSlots = [];
+    usedBaseHistory = [];
     recordedAccents = [];
     stopTimelineLoop();
     toggleAutoAccent(false);
@@ -1427,6 +1679,7 @@
       if (backup.state === 'solo') {
         startSoloMode({
           slots: backup.slots,
+          history: backup.history,
           accents: backup.accents,
           loopDurationMs: backup.loopDurationMs
         }, true);
@@ -1434,6 +1687,7 @@
         isSoloMode = false;
         currentAppState = 'multi_rating';
         stageSlots = backup.slots || [];
+        usedBaseHistory = backup.history || JSON.parse(JSON.stringify(stageSlots));
         recordedAccents = backup.accents || [];
         sessionLoopDurationMs = backup.loopDurationMs || 60000;
         updateRecordedCountUI();
