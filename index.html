@@ -17,6 +17,9 @@
       --muted: #8f95b2;
     }
     * { box-sizing: border-box; }
+    html, body {
+      overscroll-behavior-y: none; /* スマホの引っ張り更新（プルリフレッシュ）を防止 */
+    }
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -104,6 +107,8 @@
       justify-content: center;
       color: var(--muted);
       font-size: 0.85rem;
+      padding: 0 10px;
+      text-align: center;
     }
     .ripple {
       position: absolute;
@@ -375,6 +380,7 @@
   const BASE_SOUNDS = BASE_FILES.map((filename, idx) => ({
     id: `base_${idx + 1}`,
     name: filename.replace(/\.mp3$/i, ''),
+    rawFilename: filename,
     file: 'sounds/' + encodeURIComponent(filename),
     isBase: true
   }));
@@ -382,12 +388,13 @@
   const ACCENT_SOUNDS = ACCENT_FILES.map((filename, idx) => ({
     id: `one_${idx + 1}`,
     name: filename.replace(/\.mp3$/i, ''),
+    rawFilename: filename,
     file: 'sounds/' + encodeURIComponent(filename),
     isBase: false
   }));
 
   // ==========================================
-  // 2. Web Audio API（クロスフェード・ループ＆安全音量管理）
+  // 2. Web Audio API（表記ゆれ自動救済＆クロスフェード・ループ）
   // ==========================================
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const masterGain = audioCtx.createGain();
@@ -397,19 +404,40 @@
   const audioBufferCache = {};
   const activeBaseLoops = {};
 
-  async function loadAudioBuffer(url, isBase) {
-    if (audioBufferCache[url]) return audioBufferCache[url];
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const arrayBuf = await res.arrayBuffer();
-      const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
-      audioBufferCache[url] = audioBuf;
-      return audioBuf;
-    } catch (e) {
-      console.warn('音源読み込みエラー（代替音を使用）:', decodeURIComponent(url), e);
-      return createFallbackBuffer(isBase);
+  async function tryFetchAndDecode(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const arrayBuf = await res.arrayBuffer();
+    return await audioCtx.decodeAudioData(arrayBuf);
+  }
+
+  async function loadAudioBuffer(soundObj) {
+    const cacheKey = soundObj.id;
+    if (audioBufferCache[cacheKey]) return audioBufferCache[cacheKey];
+
+    const raw = soundObj.rawFilename;
+    // 候補リスト：通常、MacのNFD濁点形式、「が」抜け（「水滴ポタポタ.mp3」等）、小文字拡張子
+    const candidates = [
+      raw,
+      raw.normalize('NFD'),
+      raw.replace('が', ''),
+      raw.replace('が', '').normalize('NFD'),
+      raw.replace(/\.mp3$/i, '.MP3')
+    ];
+
+    for (const name of [...new Set(candidates)]) {
+      try {
+        const audioBuf = await tryFetchAndDecode('sounds/' + encodeURIComponent(name));
+        audioBufferCache[cacheKey] = audioBuf;
+        return audioBuf;
+      } catch (_) {
+        // 次の候補を試す
+      }
     }
+
+    // すべて失敗した場合
+    triggerRipple(`⚠️ 「${raw}」がsoundsフォルダに見つかりませんでした`);
+    return createFallbackBuffer(soundObj.isBase);
   }
 
   function createFallbackBuffer(isBase) {
@@ -431,7 +459,7 @@
     if (activeBaseLoops[soundObj.id]) return;
     if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-    const buffer = await loadAudioBuffer(soundObj.file, true);
+    const buffer = await loadAudioBuffer(soundObj);
     const groupGain = audioCtx.createGain();
     groupGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
     groupGain.gain.linearRampToValueAtTime(volume * 0.7, audioCtx.currentTime + 1.5);
@@ -490,7 +518,7 @@
 
   async function playOneShot(soundObj, isPreview = false) {
     if (audioCtx.state === 'suspended') await audioCtx.resume();
-    const buffer = await loadAudioBuffer(soundObj.file, soundObj.isBase);
+    const buffer = await loadAudioBuffer(soundObj);
     const src = audioCtx.createBufferSource();
     src.buffer = buffer;
 
@@ -613,7 +641,7 @@
   let isHost = true;
   let connections = [];
   let hostConn = null;
-  let myAssignedRole = null; // { type: 'base'|'accent', sounds: [...] }
+  let myAssignedRole = null;
   let isAccentCooldown = false;
   let ratingsReceived = [];
   let sessionTimerInt = null;
@@ -697,12 +725,10 @@
     const duration = parseInt(document.getElementById('session-duration').value, 10);
     const allMembers = [myPeerId, ...connections.map(c => c.peer)].sort(() => Math.random() - 0.5);
 
-    // 2人ならベース1人・アクセント1人、3人以上ならベース2人・残り全員アクセント
     const baseCount = allMembers.length === 1 ? 1 : (allMembers.length === 2 ? 1 : 2);
 
     allMembers.forEach((memberId, idx) => {
       const isBaseRole = idx < baseCount;
-      // ベース担当には4音、アクセント担当には8音をランダム配布
       const roleObj = isBaseRole
         ? { type: 'base', sounds: pickRandomSounds(BASE_SOUNDS, 4) }
         : { type: 'accent', sounds: pickRandomSounds(ACCENT_SOUNDS, 8) };
