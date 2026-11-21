@@ -119,18 +119,19 @@
 
     .sound-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+      gap: 10px;
       margin-top: 10px;
     }
     .sound-item {
       background: var(--card-sub);
-      padding: 10px;
+      padding: 12px;
       border-radius: 10px;
       font-size: 0.85rem;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
+      border: 1px solid #2f344e;
     }
     .badge {
       display: inline-block;
@@ -246,33 +247,35 @@
     </div>
   </div>
 
-  <!-- 4A. マルチプレイ用：自分の担当操作パネル -->
+  <!-- 4A. マルチプレイ用：自分の手持ちカード一覧（複数選択可） -->
   <div id="view-multi-pad" class="card hidden">
-    <div class="badge" id="my-role-badge">あなたの担当</div>
-    <h3 id="my-sound-title" style="margin:6px 0 12px;">---</h3>
-
-    <div id="ctrl-base" class="hidden">
-      <p style="font-size:0.85rem; color:var(--muted);">
-        ステージに出すと全員にループ配信されます（3人目が入ると古い音と交代します）
-      </p>
-      <div style="margin:10px 0;">
-        <label style="font-size:0.85rem;">自分の音量バランス: <span id="my-base-vol-label">50</span>%</label>
-        <input type="range" id="my-base-vol" min="10" max="80" value="50" oninput="updateMyBaseVolume(this.value)">
+    <div class="flex-row" style="justify-content:space-between; margin-bottom:8px;">
+      <div>
+        <div class="badge" id="my-role-badge">あなたの担当</div>
+        <h3 id="my-role-title" style="margin:4px 0 0;">---</h3>
       </div>
-      <div class="flex-row">
-        <button class="secondary" onclick="previewMySound()">🎧 自分だけ試聴（3秒）</button>
-        <button id="btn-toggle-stage" onclick="toggleMyBaseStage()">✨ ステージに出す（ON）</button>
-      </div>
+      <button class="secondary" style="font-size:0.82rem; padding:6px 12px;" onclick="rerollMyHand()">🔄 手持ちを入れ替え</button>
     </div>
 
-    <div id="ctrl-accent" class="hidden">
-      <p style="font-size:0.85rem; color:var(--muted);">
-        押したタイミング（間）も記録され、そのままお気に入りループとして保存できます！
+    <!-- ベース担当の操作（4種類から選べる） -->
+    <div id="ctrl-base" class="hidden">
+      <p style="font-size:0.85rem; color:var(--muted); margin:4px 0 10px;">
+        手持ちの4音から好きな音を選んでステージに出せます（全体で最大2枠まで同時再生）
       </p>
-      <div class="flex-row">
-        <button class="secondary" onclick="previewMySound()">🎧 自分だけ試聴</button>
-        <button id="btn-fire-accent" class="green" onclick="fireMyAccent()">💧 みんなに鳴らす</button>
+      <div style="margin:10px 0; background:var(--card-sub); padding:10px 12px; border-radius:10px;">
+        <label style="font-size:0.85rem;">あなたの音量バランス: <span id="my-base-vol-label">50</span>%</label>
+        <input type="range" id="my-base-vol" min="10" max="80" value="50" oninput="updateMyBaseVolume(this.value)">
       </div>
+      <div class="sound-grid" id="multi-base-grid"></div>
+    </div>
+
+    <!-- アクセント単発担当の操作（8種類から選べる） -->
+    <div id="ctrl-accent" class="hidden">
+      <p style="font-size:0.85rem; color:var(--muted); margin:4px 0 10px;">
+        手持ちの8音から好きな音を選んで鳴らせます（押したタイミングも記録されます・3秒クールタイム付き）
+      </p>
+      <div id="accent-cooldown-bar" style="font-size:0.85rem; color:var(--green); font-weight:bold; min-height:22px;"></div>
+      <div class="sound-grid" id="multi-accent-grid"></div>
     </div>
   </div>
 
@@ -513,10 +516,9 @@
   let stageSlots = [];
   let isSoloMode = false;
 
-  // 単発音のタイミング記録用
   let sessionStartTime = 0;
   let sessionLoopDurationMs = 60000;
-  let recordedAccents = []; // [{ offsetMs, sound }]
+  let recordedAccents = [];
   let timelineTimers = [];
   let timelineLoopInterval = null;
 
@@ -583,11 +585,8 @@
       }
     }
 
-    if (!isSoloMode && myAssignedSound && myAssignedSound.type === 'base') {
-      const isOn = stageSlots.some(s => s.id === myAssignedSound.sound.id && s.ownerId === myPeerId);
-      const btn = document.getElementById('btn-toggle-stage');
-      btn.innerText = isOn ? '⏹ ステージから下ろす（OFF）' : '✨ ステージに出す（ON）';
-      btn.className = isOn ? 'active-stage' : '';
+    if (!isSoloMode && myAssignedRole) {
+      renderMultiHandUI();
     }
 
     if (isSoloMode) renderSoloGrid();
@@ -605,7 +604,7 @@
   }
 
   // ==========================================
-  // 4. マルチプレイ通信（数字4桁コード＆2人以上役割分担対応）
+  // 4. マルチプレイ通信（複数カード配布＆リロール対応）
   // ==========================================
   const PEER_PREFIX = 'shashablue-asmr-';
   let peer = null;
@@ -614,9 +613,14 @@
   let isHost = true;
   let connections = [];
   let hostConn = null;
-  let myAssignedSound = null;
+  let myAssignedRole = null; // { type: 'base'|'accent', sounds: [...] }
+  let isAccentCooldown = false;
   let ratingsReceived = [];
   let sessionTimerInt = null;
+
+  function pickRandomSounds(sourceList, count) {
+    return [...sourceList].sort(() => Math.random() - 0.5).slice(0, count);
+  }
 
   function showMultiLobby() {
     isSoloMode = false;
@@ -693,15 +697,15 @@
     const duration = parseInt(document.getElementById('session-duration').value, 10);
     const allMembers = [myPeerId, ...connections.map(c => c.peer)].sort(() => Math.random() - 0.5);
 
-    const shuffledBase = [...BASE_SOUNDS].sort(() => Math.random() - 0.5);
-    const shuffledAccent = [...ACCENT_SOUNDS].sort(() => Math.random() - 0.5);
-
+    // 2人ならベース1人・アクセント1人、3人以上ならベース2人・残り全員アクセント
     const baseCount = allMembers.length === 1 ? 1 : (allMembers.length === 2 ? 1 : 2);
 
     allMembers.forEach((memberId, idx) => {
-      const roleObj = idx < baseCount
-        ? { type: 'base', sound: shuffledBase[idx % shuffledBase.length] }
-        : { type: 'accent', sound: shuffledAccent[idx % shuffledAccent.length] };
+      const isBaseRole = idx < baseCount;
+      // ベース担当には4音、アクセント担当には8音をランダム配布
+      const roleObj = isBaseRole
+        ? { type: 'base', sounds: pickRandomSounds(BASE_SOUNDS, 4) }
+        : { type: 'accent', sounds: pickRandomSounds(ACCENT_SOUNDS, 8) };
 
       if (memberId === myPeerId) {
         beginMultiSession(roleObj, duration);
@@ -712,9 +716,21 @@
     });
   }
 
+  function rerollMyHand() {
+    if (!myAssignedRole) return;
+    if (myAssignedRole.type === 'base') {
+      myAssignedRole.sounds = pickRandomSounds(BASE_SOUNDS, 4);
+    } else {
+      myAssignedRole.sounds = pickRandomSounds(ACCENT_SOUNDS, 8);
+    }
+    renderMultiHandUI();
+    triggerRipple('🔄 手持ちのASMR音を入れ替えました');
+  }
+
   function beginMultiSession(roleObj, duration) {
     stopTimelineLoop();
-    myAssignedSound = roleObj;
+    myAssignedRole = roleObj;
+    isAccentCooldown = false;
     stageSlots = [];
     ratingsReceived = [];
     recordedAccents = [];
@@ -730,16 +746,18 @@
 
     document.getElementById('mode-badge').innerText = '👥 みんなで調合中';
     if (roleObj.type === 'base') {
-      document.getElementById('my-role-badge').innerText = '🌊 環境ベース担当（最大2枠）';
-      document.getElementById('my-sound-title').innerText = roleObj.sound.name;
+      document.getElementById('my-role-badge').innerText = '🌊 環境ベース担当';
+      document.getElementById('my-role-title').innerText = '4つの環境音から選択';
       document.getElementById('ctrl-base').classList.remove('hidden');
       document.getElementById('ctrl-accent').classList.add('hidden');
     } else {
       document.getElementById('my-role-badge').innerText = '💧 アクセント単発担当';
-      document.getElementById('my-sound-title').innerText = roleObj.sound.name;
+      document.getElementById('my-role-title').innerText = '8つの単発音から選択';
       document.getElementById('ctrl-base').classList.add('hidden');
       document.getElementById('ctrl-accent').classList.remove('hidden');
     }
+
+    renderMultiHandUI();
 
     let remain = duration;
     document.getElementById('timer-display').innerText = `残り ${remain}秒`;
@@ -754,12 +772,52 @@
     }, 1000);
   }
 
+  function renderMultiHandUI() {
+    if (!myAssignedRole) return;
+
+    if (myAssignedRole.type === 'base') {
+      const grid = document.getElementById('multi-base-grid');
+      grid.innerHTML = '';
+      myAssignedRole.sounds.forEach(s => {
+        const isOn = stageSlots.some(slot => slot.id === s.id);
+        const div = document.createElement('div');
+        div.className = 'sound-item';
+        div.innerHTML = `
+          <strong>🌊 ${s.name}</strong>
+          <div class="flex-row" style="gap:6px;">
+            <button class="secondary" style="padding:6px 10px; font-size:0.8rem;" onclick="previewSoundById('${s.id}', true)">🎧 試聴</button>
+            <button class="${isOn ? 'active-stage' : ''}" style="flex:1; padding:6px 10px; font-size:0.82rem;" onclick="toggleBaseById('${s.id}')">
+              ${isOn ? '⏹ 停止' : '✨ 出す'}
+            </button>
+          </div>
+        `;
+        grid.appendChild(div);
+      });
+    } else {
+      const grid = document.getElementById('multi-accent-grid');
+      grid.innerHTML = '';
+      myAssignedRole.sounds.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'sound-item';
+        div.innerHTML = `
+          <strong>💧 ${s.name}</strong>
+          <div class="flex-row" style="gap:6px;">
+            <button class="secondary" style="padding:6px 10px; font-size:0.8rem;" onclick="previewSoundById('${s.id}', false)">🎧 試聴</button>
+            <button class="green accent-fire-btn" ${isAccentCooldown ? 'disabled' : ''} style="flex:1; padding:6px 10px; font-size:0.82rem;" onclick="fireAccentById('${s.id}')">
+              鳴らす
+            </button>
+          </div>
+        `;
+        grid.appendChild(div);
+      });
+    }
+  }
+
   function endMultiSession() {
     document.getElementById('view-multi-pad').classList.add('hidden');
     document.getElementById('view-rating').classList.remove('hidden');
     document.getElementById('mode-badge').innerText = '✨ 完成レシピ試聴中（ループ再生中）';
     triggerRipple('調合タイム終了！記録された単発リズムも含めてループ再生中です');
-    // 記録された単発リズムのループ再生を開始
     startTimelineLoop();
   }
 
@@ -769,7 +827,7 @@
     } else if (data.type === 'start_session') {
       beginMultiSession(data.role, data.duration);
     } else if (data.type === 'toggle_base' && isHost) {
-      const existIdx = stageSlots.findIndex(s => s.id === data.sound.id && s.ownerId === data.ownerId);
+      const existIdx = stageSlots.findIndex(s => s.id === data.sound.id);
       if (existIdx >= 0) {
         stageSlots.splice(existIdx, 1);
       } else {
@@ -780,12 +838,11 @@
       triggerRipple(`🌊 「${data.sound.name}」がステージを更新しました`);
       broadcast({ type: 'sync_stage', stageSlots, log: `🌊 「${data.sound.name}」がステージを更新しました` });
     } else if (data.type === 'update_vol' && isHost) {
-      const target = stageSlots.find(s => s.id === data.soundId && s.ownerId === data.ownerId);
-      if (target) {
-        target.volume = data.volume;
-        syncStageAudioAndUI();
-        broadcast({ type: 'sync_stage', stageSlots });
-      }
+      stageSlots.forEach(s => {
+        if (s.ownerId === data.ownerId) s.volume = data.volume;
+      });
+      syncStageAudioAndUI();
+      broadcast({ type: 'sync_stage', stageSlots });
     } else if (data.type === 'sync_stage') {
       stageSlots = data.stageSlots;
       syncStageAudioAndUI();
@@ -793,7 +850,6 @@
     } else if (data.type === 'fire_accent') {
       if (isHost) broadcast(data);
       playOneShot(data.sound, false);
-      // 鳴らしたタイミングを記録（セッション中のみ）
       if (sessionStartTime > 0) {
         const offsetMs = Math.max(0, Date.now() - sessionStartTime);
         if (offsetMs <= sessionLoopDurationMs) {
@@ -813,17 +869,21 @@
     }
   }
 
-  function previewMySound() {
-    if (!myAssignedSound) return;
-    playOneShot(myAssignedSound.sound, true);
-    triggerRipple(`🎧 自分だけ試聴中: ${myAssignedSound.sound.name}`);
+  function previewSoundById(soundId, isBase) {
+    const list = isBase ? BASE_SOUNDS : ACCENT_SOUNDS;
+    const s = list.find(item => item.id === soundId);
+    if (!s) return;
+    playOneShot(s, true);
+    triggerRipple(`🎧 自分だけ試聴中: ${s.name}`);
   }
 
-  function toggleMyBaseStage() {
+  function toggleBaseById(soundId) {
+    const s = BASE_SOUNDS.find(item => item.id === soundId);
+    if (!s) return;
     const vol = document.getElementById('my-base-vol').value / 100;
     sendToHost({
       type: 'toggle_base',
-      sound: myAssignedSound.sound,
+      sound: s,
       ownerId: myPeerId,
       volume: vol
     });
@@ -833,27 +893,33 @@
     document.getElementById('my-base-vol-label').innerText = val;
     sendToHost({
       type: 'update_vol',
-      soundId: myAssignedSound.sound.id,
       ownerId: myPeerId,
       volume: val / 100
     });
   }
 
-  function fireMyAccent() {
-    const btn = document.getElementById('btn-fire-accent');
-    btn.disabled = true;
-    sendToHost({ type: 'fire_accent', sound: myAssignedSound.sound });
+  function fireAccentById(soundId) {
+    if (isAccentCooldown) return;
+    const s = ACCENT_SOUNDS.find(item => item.id === soundId);
+    if (!s) return;
+
+    isAccentCooldown = true;
+    sendToHost({ type: 'fire_accent', sound: s });
+    renderMultiHandUI();
 
     let cd = 3;
-    btn.innerText = `余韻中... (${cd}s)`;
+    const bar = document.getElementById('accent-cooldown-bar');
+    bar.innerText = `✨ 余韻タイム中... あと ${cd} 秒で次の音を鳴らせます`;
+
     const int = setInterval(() => {
       cd--;
       if (cd <= 0) {
         clearInterval(int);
-        btn.disabled = false;
-        btn.innerText = '💧 みんなに鳴らす';
+        isAccentCooldown = false;
+        bar.innerText = '';
+        renderMultiHandUI();
       } else {
-        btn.innerText = `余韻中... (${cd}s)`;
+        bar.innerText = `✨ 余韻タイム中... あと ${cd} 秒で次の音を鳴らせます`;
       }
     }, 1000);
   }
@@ -884,7 +950,6 @@
     document.getElementById('mode-badge').innerText = '🌙 1人でおやすみモード';
     document.getElementById('timer-display').innerText = 'エンドレス再生';
 
-    // 保存された単発リズムがある場合はチェックボックスを表示して自動ループ開始
     const replayLabel = document.getElementById('replay-timeline-label');
     const replayChk = document.getElementById('replay-timeline-chk');
     if (recordedAccents.length > 0) {
