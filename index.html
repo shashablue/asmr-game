@@ -205,7 +205,7 @@
       border: 1px solid #353b5c;
       border-radius: 16px;
       width: 100%;
-      max-width: 520px;
+      max-width: 540px;
       max-height: 88vh;
       overflow-y: auto;
       padding: 18px;
@@ -224,9 +224,16 @@
       gap: 8px;
       padding: 6px 0;
       border-bottom: 1px solid #303652;
-      font-size: 0.86rem;
+      font-size: 0.85rem;
     }
     .check-row:last-child { border-bottom: none; }
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 8px;
+      font-size: 0.82rem;
+    }
   </style>
 </head>
 <body>
@@ -321,8 +328,8 @@
     </div>
 
     <div id="timeline-badge-bar" class="flex-row" style="margin-top:10px; justify-content:space-between; font-size:0.82rem; color:var(--green);">
-      <div>💧 記録された単発リズム: <span id="recorded-count">0</span> 音（<span id="current-loop-sec-label">60</span>秒周期）</div>
-      <button id="reset-timeline-btn" class="secondary hidden" style="padding:4px 10px; font-size:0.75rem;" onclick="resetRecordedTimeline()">🗑 リズムをリセット</button>
+      <div>⏱ タイムライン記録: ベース変化 <span id="recorded-base-count">0</span>回 / 単発 <span id="recorded-count">0</span>音（<span id="current-loop-sec-label">60</span>秒周期）</div>
+      <button id="reset-timeline-btn" class="secondary hidden" style="padding:4px 10px; font-size:0.75rem;" onclick="resetRecordedTimeline()">🗑 タイムラインをリセット</button>
     </div>
 
     <div class="flex-row" style="margin-top:14px; padding-top:12px; border-top:1px solid #2b304a; justify-content:space-between;">
@@ -352,7 +359,7 @@
 
     <div id="ctrl-base" class="hidden">
       <p style="font-size:0.85rem; color:var(--muted); margin:4px 0 10px;">
-        手持ちの4音から好きな音を選んでステージに出せます（全体で最大2枠まで同時再生）
+        手持ちの4音から好きな音を選んでステージに出せます（ON/OFFのタイミングも自動記録されます）
       </p>
       <div style="margin:10px 0; background:var(--card-sub); padding:10px 12px; border-radius:10px;">
         <label style="font-size:0.85rem;">あなたの音量バランス: <span id="my-base-vol-label">50</span>%</label>
@@ -394,7 +401,7 @@
       <div class="flex-row" style="gap:10px;">
         <label id="replay-timeline-label" class="hidden" style="font-size:0.82rem; color:var(--green); cursor:pointer;">
           <input type="checkbox" id="replay-timeline-chk" onchange="toggleTimelineLoop(this.checked)">
-          単発リズムをループ再生
+          タイムラインをループ再生
         </label>
         <label style="font-size:0.82rem; cursor:pointer;">
           <input type="checkbox" id="auto-accent-chk" onchange="toggleAutoAccent(this.checked)">
@@ -408,7 +415,7 @@
   <!-- 5. セッション終了後の癒やし度採点モーダル -->
   <div id="view-rating" class="card hidden" style="text-align:center;">
     <h3>🌙 セッション終了！</h3>
-    <p>今つくられたASMR空間（単発リズム含む）がループ再生されています。癒やし度を採点してください！</p>
+    <p>今つくられたASMR空間（ベース変化＋単発リズム）が時間の流れ通りにループ再生されています！</p>
     <div id="star-buttons" style="margin:14px 0;">
       <button class="star-btn" onclick="submitRating(1)">★1</button>
       <button class="star-btn" onclick="submitRating(2)">★2</button>
@@ -432,20 +439,34 @@
       <h3 style="margin:0;">⭐ 保存内容の確認・調整</h3>
       <button class="secondary" style="padding:4px 10px; font-size:0.85rem;" onclick="closeSaveConfirmModal()">✕ 閉じる</button>
     </div>
-    <p style="font-size:0.82rem; color:var(--muted); margin:6px 0 12px;">
-      途中でOFFにした環境ベース音も履歴から復元して含めることができます（最大2つまで）。
-    </p>
 
-    <div>
+    <div style="margin-top:10px;">
       <label style="font-size:0.85rem; font-weight:bold;">レシピ名:</label>
-      <input type="text" id="confirm-recipe-title" style="width:100%; margin-top:4px;" placeholder="例：雨音とたき火の夜">
+      <input type="text" id="confirm-recipe-title" style="width:100%; margin-top:4px;" placeholder="例：前半は波音・後半はたき火の夜">
     </div>
 
     <div class="modal-section">
       <div style="font-size:0.85rem; font-weight:bold; margin-bottom:6px;">
-        🌊 含める環境ベース音（最大2つまで選択可）
+        🌊 環境ベース音の保存方法
       </div>
-      <div id="confirm-base-list" style="font-size:0.85rem; color:var(--muted);"></div>
+      <div class="radio-group">
+        <label style="cursor:pointer;">
+          <input type="radio" name="base-save-mode" value="timeline" checked onchange="switchConfirmBaseMode(this.value)">
+          <strong>時間の流れ通りに切り替える（おすすめ）</strong>
+          <div style="font-size:0.76rem; color:var(--muted); margin-left:18px;">ON・OFF・音量変更した秒数通りにループ再生します</div>
+        </label>
+        <label style="cursor:pointer;">
+          <input type="radio" name="base-save-mode" value="fixed" onchange="switchConfirmBaseMode(this.value)">
+          <strong>選んだ音を最初から最後まで固定で鳴らす</strong>
+          <div style="font-size:0.76rem; color:var(--muted); margin-left:18px;">途中変化をなくし、選んだ最大2音をずっとループ再生します</div>
+        </label>
+      </div>
+
+      <!-- タイムラインモード時のプレビュー -->
+      <div id="confirm-base-timeline-view" style="max-height:130px; overflow-y:auto; font-size:0.8rem; color:var(--muted); border-top:1px solid #303652; padding-top:6px;"></div>
+
+      <!-- 固定モード時のチェックリスト -->
+      <div id="confirm-base-fixed-view" class="hidden" style="border-top:1px solid #303652; padding-top:6px;"></div>
     </div>
 
     <div class="modal-section">
@@ -456,7 +477,7 @@
           リズムを保存に含める
         </label>
       </div>
-      <div id="confirm-accent-list" style="max-height:150px; overflow-y:auto; font-size:0.82rem; color:var(--muted);"></div>
+      <div id="confirm-accent-list" style="max-height:130px; overflow-y:auto; font-size:0.8rem; color:var(--muted);"></div>
     </div>
 
     <div class="flex-row" style="justify-content:flex-end; margin-top:16px;">
@@ -526,7 +547,6 @@
     isBase: true
   }));
 
-  // 単発音リストは「専用34種 + 環境ベース8種 = 全42種」
   const ACCENT_SOUNDS = [
     ...ACCENT_ONLY_FILES.map((filename, idx) => ({
       id: `one_${idx + 1}`,
@@ -623,7 +643,7 @@
 
     const groupGain = audioCtx.createGain();
     groupGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-    groupGain.gain.linearRampToValueAtTime(volume * 0.7, audioCtx.currentTime + 1.5);
+    groupGain.gain.linearRampToValueAtTime(volume * 0.7, audioCtx.currentTime + 1.2);
     groupGain.connect(masterGain);
     loopState.gainNode = groupGain;
 
@@ -672,11 +692,11 @@
       const now = audioCtx.currentTime;
       loopState.gainNode.gain.cancelScheduledValues(now);
       loopState.gainNode.gain.setValueAtTime(loopState.gainNode.gain.value, now);
-      loopState.gainNode.gain.linearRampToValueAtTime(0.0001, now + 1.2);
+      loopState.gainNode.gain.linearRampToValueAtTime(0.0001, now + 1.0);
       setTimeout(() => {
         loopState.sources.forEach(s => { try { s.stop(); } catch (_) {} });
         try { loopState.gainNode.disconnect(); } catch (_) {}
-      }, 1300);
+      }, 1100);
     }
   }
 
@@ -706,7 +726,6 @@
     };
 
     const now = audioCtx.currentTime;
-    // 試聴時、または長い環境音を単発として鳴らす場合は3.5秒前後で滑らかにフェードアウト
     if (isPreview && buffer.duration > 3.0) {
       gain.gain.setValueAtTime(targetVol, now + 2.2);
       gain.gain.linearRampToValueAtTime(0.001, now + 3.0);
@@ -725,18 +744,61 @@
   }
 
   // ==========================================
-  // 3. ステージ状態・ベース使用履歴・リロード保護
+  // 3. ステージ状態・ベース＆単発タイムライン記録・再生
   // ==========================================
   let stageSlots = [];
-  let usedBaseHistory = []; // 途中でOFFにしたベース音も保存時に選べるよう履歴保持
+  let usedBaseHistory = [];
   let isSoloMode = false;
   let currentAppState = 'home';
 
   let sessionStartTime = 0;
   let sessionLoopDurationMs = 60000;
   let recordedAccents = [];
+  let recordedBaseEvents = []; // { offsetMs, slots: [ {id, name, volume}, ... ] }
+  let isReplayingTimeline = false;
+
   let timelineTimers = [];
   let timelineLoopInterval = null;
+  let volRecordDebounce = null;
+
+  function ensureSessionClockStarted() {
+    if (sessionStartTime === 0) {
+      sessionStartTime = Date.now();
+    }
+  }
+
+  function getCurrentOffsetMs() {
+    ensureSessionClockStarted();
+    const raw = Date.now() - sessionStartTime;
+    if (isSoloMode) {
+      return raw % sessionLoopDurationMs;
+    }
+    return Math.min(raw, sessionLoopDurationMs);
+  }
+
+  // 現在のベース枠状態スナップショットをタイムラインへ記録
+  function recordBaseSnapshot(customOffsetMs = null) {
+    if (isReplayingTimeline) return;
+    const offsetMs = customOffsetMs !== null ? customOffsetMs : getCurrentOffsetMs();
+    const snapshot = stageSlots.map(s => ({
+      id: s.id,
+      name: s.name,
+      volume: s.volume
+    }));
+
+    // 直前のイベントとほぼ同じ秒数（0.15秒以内）なら上書きして整理
+    if (recordedBaseEvents.length > 0) {
+      const last = recordedBaseEvents[recordedBaseEvents.length - 1];
+      if (Math.abs(last.offsetMs - offsetMs) < 150) {
+        last.slots = snapshot;
+        updateRecordedCountUI();
+        return;
+      }
+    }
+
+    recordedBaseEvents.push({ offsetMs, slots: snapshot });
+    updateRecordedCountUI();
+  }
 
   function recordUsedBase(slotObj) {
     const idx = usedBaseHistory.findIndex(item => item.id === slotObj.id);
@@ -764,6 +826,7 @@
         state: currentAppState,
         slots: stageSlots,
         history: usedBaseHistory,
+        baseEvents: recordedBaseEvents,
         accents: recordedAccents,
         loopDurationMs: sessionLoopDurationMs,
         ratingText: document.getElementById('rating-result').innerText
@@ -781,22 +844,25 @@
   function resumeAudioAfterReload() {
     document.getElementById('resume-audio-banner').classList.add('hidden');
     audioCtx.resume().then(() => {
-      syncStageAudioAndUI();
-      if (recordedAccents.length > 0) {
-        const chk = document.getElementById('replay-timeline-chk');
-        if (currentAppState === 'multi_rating' || (chk && chk.checked)) {
-          startTimelineLoop();
-        }
+      const chk = document.getElementById('replay-timeline-chk');
+      const hasTimeline = recordedAccents.length > 0 || recordedBaseEvents.length > 0;
+      if (hasTimeline && (currentAppState === 'multi_rating' || (chk && chk.checked))) {
+        startTimelineLoop();
+      } else {
+        syncStageAudioAndUI();
       }
       triggerRipple('🔊 音声の再生を再開しました');
     });
   }
 
   function updateRecordedCountUI() {
+    document.getElementById('recorded-base-count').innerText = recordedBaseEvents.length;
     document.getElementById('recorded-count').innerText = recordedAccents.length;
     document.getElementById('current-loop-sec-label').innerText = Math.round(sessionLoopDurationMs / 1000);
+
+    const hasAnyRecord = recordedAccents.length > 0 || recordedBaseEvents.length > 0;
     const resetBtn = document.getElementById('reset-timeline-btn');
-    if (isSoloMode && recordedAccents.length > 0) {
+    if (isSoloMode && hasAnyRecord) {
       resetBtn.classList.remove('hidden');
       document.getElementById('replay-timeline-label').classList.remove('hidden');
     } else {
@@ -808,18 +874,50 @@
   function resetRecordedTimeline() {
     stopTimelineLoop();
     recordedAccents = [];
+    recordedBaseEvents = [];
     sessionStartTime = 0;
+    if (stageSlots.length > 0) {
+      recordBaseSnapshot(0);
+    }
     document.getElementById('replay-timeline-chk').checked = false;
     updateRecordedCountUI();
     saveSessionBackup();
-    triggerRipple('🗑 記録された単発リズムをリセットしました');
+    triggerRipple('🗑 タイムライン記録をリセットしました');
   }
 
+  // ベース音変化＋単発音のタイムラインを周期ループ再生
   function startTimelineLoop() {
     stopTimelineLoop();
-    if (recordedAccents.length === 0) return;
+    const hasBaseTimeline = recordedBaseEvents.length > 0;
+    const hasAccTimeline = recordedAccents.length > 0;
+    if (!hasBaseTimeline && !hasAccTimeline) return;
+
+    isReplayingTimeline = true;
 
     const scheduleCycle = () => {
+      // 1. ベース音のタイムライン再現
+      if (hasBaseTimeline) {
+        const sortedBase = [...recordedBaseEvents].sort((a, b) => a.offsetMs - b.offsetMs);
+        // 0秒地点にイベントがない場合は初期状態を無音からスタート
+        if (sortedBase[0].offsetMs > 0) {
+          stageSlots = [];
+          syncStageAudioAndUI();
+        }
+        sortedBase.forEach(ev => {
+          const t = setTimeout(() => {
+            stageSlots = JSON.parse(JSON.stringify(ev.slots));
+            syncStageAudioAndUI();
+            if (stageSlots.length > 0) {
+              triggerRipple(`🌊 タイムライン切替: ${stageSlots.map(s => s.name).join(' × ')}`);
+            } else {
+              triggerRipple('🌊 タイムライン切替: ベース音OFF');
+            }
+          }, ev.offsetMs);
+          timelineTimers.push(t);
+        });
+      }
+
+      // 2. 単発音のタイムライン再現
       recordedAccents.forEach(ev => {
         const t = setTimeout(() => {
           playOneShot(ev.sound, false);
@@ -834,6 +932,7 @@
   }
 
   function stopTimelineLoop() {
+    isReplayingTimeline = false;
     timelineTimers.forEach(t => clearTimeout(t));
     timelineTimers = [];
     clearInterval(timelineLoopInterval);
@@ -841,8 +940,12 @@
   }
 
   function toggleTimelineLoop(enabled) {
-    if (enabled) startTimelineLoop();
-    else stopTimelineLoop();
+    if (enabled) {
+      startTimelineLoop();
+    } else {
+      stopTimelineLoop();
+      triggerRipple('⏹ タイムラインのループ再生を停止しました');
+    }
   }
 
   function syncStageAudioAndUI() {
@@ -895,7 +998,7 @@
   }
 
   // ==========================================
-  // 4. マルチプレイ通信（複数カード配布＆リロール対応）
+  // 4. マルチプレイ通信（複数カード配布＆タイムライン記録対応）
   // ==========================================
   const PEER_PREFIX = 'shashablue-asmr-';
   let peer = null;
@@ -1027,6 +1130,7 @@
     usedBaseHistory = [];
     ratingsReceived = [];
     recordedAccents = [];
+    recordedBaseEvents = [{ offsetMs: 0, slots: [] }];
     sessionStartTime = Date.now();
     sessionLoopDurationMs = duration * 1000;
     updateRecordedCountUI();
@@ -1111,8 +1215,8 @@
     currentAppState = 'multi_rating';
     document.getElementById('view-multi-pad').classList.add('hidden');
     document.getElementById('view-rating').classList.remove('hidden');
-    document.getElementById('mode-badge').innerText = '✨ 完成レシピ試聴中（ループ再生中）';
-    triggerRipple('調合タイム終了！記録された単発リズムも含めてループ再生中です');
+    document.getElementById('mode-badge').innerText = '✨ 完成レシピ試聴中（タイムライン再生）';
+    triggerRipple('調合タイム終了！ベース変化と単発リズムを時間の流れ通りにループ再生中');
     startTimelineLoop();
     saveSessionBackup();
   }
@@ -1130,6 +1234,7 @@
         if (stageSlots.length >= 2) stageSlots.shift();
         stageSlots.push({ id: data.sound.id, name: data.sound.name, ownerId: data.ownerId, volume: data.volume });
       }
+      recordBaseSnapshot();
       syncStageAudioAndUI();
       triggerRipple(`🌊 「${data.sound.name}」がステージを更新しました`);
       broadcast({ type: 'sync_stage', stageSlots, log: `🌊 「${data.sound.name}」がステージを更新しました` });
@@ -1137,10 +1242,12 @@
       stageSlots.forEach(s => {
         if (s.ownerId === data.ownerId) s.volume = data.volume;
       });
+      recordBaseSnapshot();
       syncStageAudioAndUI();
       broadcast({ type: 'sync_stage', stageSlots });
     } else if (data.type === 'sync_stage') {
       stageSlots = data.stageSlots;
+      recordBaseSnapshot();
       syncStageAudioAndUI();
       if (data.log) triggerRipple(data.log);
     } else if (data.type === 'fire_accent') {
@@ -1236,13 +1343,22 @@
     isSoloMode = true;
     currentAppState = 'solo';
     stopTimelineLoop();
+
     stageSlots = preset && preset.slots ? JSON.parse(JSON.stringify(preset.slots)) : [];
     usedBaseHistory = preset && preset.history
       ? JSON.parse(JSON.stringify(preset.history))
       : JSON.parse(JSON.stringify(stageSlots));
+    recordedBaseEvents = preset && preset.baseEvents
+      ? JSON.parse(JSON.stringify(preset.baseEvents))
+      : (stageSlots.length > 0 ? [{ offsetMs: 0, slots: JSON.parse(JSON.stringify(stageSlots)) }] : []);
     recordedAccents = preset && preset.accents ? JSON.parse(JSON.stringify(preset.accents)) : [];
     sessionLoopDurationMs = preset && preset.loopDurationMs ? preset.loopDurationMs : 60000;
     sessionStartTime = 0;
+
+    // 履歴にもタイムライン登場分を反映
+    recordedBaseEvents.forEach(ev => {
+      ev.slots.forEach(s => recordUsedBase(s));
+    });
 
     document.getElementById('solo-loop-duration').value = String(Math.round(sessionLoopDurationMs / 1000));
     updateRecordedCountUI();
@@ -1253,7 +1369,8 @@
     document.getElementById('mode-badge').innerText = '🌙 1人でおやすみモード';
     document.getElementById('timer-display').innerText = 'エンドレス再生';
 
-    if (isFromReload && (stageSlots.length > 0 || recordedAccents.length > 0)) {
+    const hasAnyContent = stageSlots.length > 0 || recordedAccents.length > 0 || recordedBaseEvents.length > 0;
+    if (isFromReload && hasAnyContent) {
       document.getElementById('resume-audio-banner').classList.remove('hidden');
     } else {
       document.getElementById('resume-audio-banner').classList.add('hidden');
@@ -1263,10 +1380,15 @@
 
     const replayLabel = document.getElementById('replay-timeline-label');
     const replayChk = document.getElementById('replay-timeline-chk');
-    if (recordedAccents.length > 0) {
+    const hasTimeline = recordedAccents.length > 0 || recordedBaseEvents.length > 1 || (recordedBaseEvents.length === 1 && recordedBaseEvents[0].offsetMs > 0);
+
+    if (hasTimeline) {
       replayLabel.classList.remove('hidden');
       replayChk.checked = true;
       if (!isFromReload) startTimelineLoop();
+    } else if (recordedBaseEvents.length === 1) {
+      replayLabel.classList.remove('hidden');
+      replayChk.checked = false;
     } else {
       replayLabel.classList.add('hidden');
       replayChk.checked = false;
@@ -1280,8 +1402,9 @@
     const sec = parseInt(secStr, 10);
     sessionLoopDurationMs = sec * 1000;
     recordedAccents = recordedAccents.filter(ev => ev.offsetMs < sessionLoopDurationMs);
+    recordedBaseEvents = recordedBaseEvents.filter(ev => ev.offsetMs < sessionLoopDurationMs);
     updateRecordedCountUI();
-    if (document.getElementById('replay-timeline-chk').checked && recordedAccents.length > 0) {
+    if (document.getElementById('replay-timeline-chk').checked) {
       startTimelineLoop();
     }
     saveSessionBackup();
@@ -1294,10 +1417,13 @@
 
     playOneShot(s, false);
 
-    if (sessionStartTime === 0) {
-      sessionStartTime = Date.now();
+    // 初めて操作した瞬間に0秒時点のベース状態が未記録なら記録
+    if (sessionStartTime === 0 && recordedBaseEvents.length === 0) {
+      ensureSessionClockStarted();
+      recordBaseSnapshot(0);
     }
-    const offsetMs = (Date.now() - sessionStartTime) % sessionLoopDurationMs;
+
+    const offsetMs = getCurrentOffsetMs();
     recordedAccents.push({ offsetMs, sound: s });
     updateRecordedCountUI();
     saveSessionBackup();
@@ -1342,6 +1468,12 @@
   }
 
   function toggleSoloBase(soundId) {
+    // タイムライン再現中の手動操作は再現を一時解除してライブ編集に戻る
+    if (isReplayingTimeline) {
+      stopTimelineLoop();
+      document.getElementById('replay-timeline-chk').checked = false;
+    }
+
     const idx = stageSlots.findIndex(s => s.id === soundId);
     if (idx >= 0) {
       stageSlots.splice(idx, 1);
@@ -1356,6 +1488,7 @@
         volume: prevHist ? prevHist.volume : 0.5
       });
     }
+    recordBaseSnapshot();
     syncStageAudioAndUI();
   }
 
@@ -1364,6 +1497,11 @@
     if (slot) {
       slot.volume = val / 100;
       syncStageAudioAndUI();
+      clearTimeout(volRecordDebounce);
+      volRecordDebounce = setTimeout(() => {
+        recordBaseSnapshot();
+        saveSessionBackup();
+      }, 300);
     }
   }
 
@@ -1391,12 +1529,27 @@
       return;
     }
 
-    if (stageSlots.length === 0 && usedBaseHistory.length === 0 && recordedAccents.length === 0) {
+    if (stageSlots.length === 0 && usedBaseHistory.length === 0 && recordedAccents.length === 0 && recordedBaseEvents.length === 0) {
       alert('ベース音または単発音の記録がある状態で保存してください！');
       return;
     }
 
-    // 候補となるベース音一覧（現在再生中 + 途中で使った履歴）
+    // 1. タイムラインモード表示の構築
+    const timelineViewEl = document.getElementById('confirm-base-timeline-view');
+    if (recordedBaseEvents.length === 0) {
+      timelineViewEl.innerHTML = '環境ベース音の切り替え記録はありません';
+    } else {
+      const sorted = [...recordedBaseEvents].sort((a, b) => a.offsetMs - b.offsetMs);
+      timelineViewEl.innerHTML = sorted.map(ev => {
+        const sec = (ev.offsetMs / 1000).toFixed(1);
+        const desc = ev.slots.length > 0
+          ? ev.slots.map(s => `🌊 ${s.name}(${Math.round(s.volume * 100)}%)`).join(' ＋ ')
+          : '🔇 ベース音OFF（静寂）';
+        return `<div style="padding:3px 0; border-bottom:1px solid #2d324c;"><strong>${sec}秒目：</strong>${desc}</div>`;
+      }).join('');
+    }
+
+    // 2. 固定モード表示（履歴＋現在再生中から最大2つ選択）の構築
     const candidateBases = [...usedBaseHistory];
     stageSlots.forEach(s => {
       if (!candidateBases.some(c => c.id === s.id)) {
@@ -1404,40 +1557,46 @@
       }
     });
 
-    // 初期チェック状態：現在再生中の音はON。もし現在再生中が0個なら履歴の直近2つを自動ON
     const activeIds = stageSlots.map(s => s.id);
     const defaultCheckedIds = activeIds.length > 0
       ? activeIds
       : candidateBases.slice(-2).map(b => b.id);
 
-    const baseListEl = document.getElementById('confirm-base-list');
+    const fixedViewEl = document.getElementById('confirm-base-fixed-view');
     if (candidateBases.length === 0) {
-      baseListEl.innerHTML = '使用された環境ベース音はありません';
+      fixedViewEl.innerHTML = '使用された環境ベース音はありません';
     } else {
-      baseListEl.innerHTML = '';
+      fixedViewEl.innerHTML = '';
       candidateBases.forEach(b => {
         const isChecked = defaultCheckedIds.includes(b.id);
-        const isCurrentlyPlaying = activeIds.includes(b.id);
         const row = document.createElement('div');
         row.className = 'check-row';
         row.innerHTML = `
           <label style="display:flex; align-items:center; gap:6px; cursor:pointer; flex:1;">
             <input type="checkbox" class="confirm-base-chk" value="${b.id}" data-name="${b.name}" ${isChecked ? 'checked' : ''} onchange="limitConfirmBaseCheck(this)">
             <span>🌊 ${b.name}</span>
-            <span style="font-size:0.72rem; color:${isCurrentlyPlaying ? 'var(--green)' : 'var(--muted)'};">
-              ${isCurrentlyPlaying ? '（再生中）' : '（途中で使用）'}
-            </span>
           </label>
           <div style="display:flex; align-items:center; gap:6px; width:130px;">
             <input type="range" class="confirm-base-vol" data-id="${b.id}" min="10" max="80" value="${Math.round(b.volume * 100)}" oninput="this.nextElementSibling.innerText = this.value + '%'">
             <span style="font-size:0.76rem; width:34px;">${Math.round(b.volume * 100)}%</span>
           </div>
         `;
-        baseListEl.appendChild(row);
+        fixedViewEl.appendChild(row);
       });
     }
 
-    // 単発リズム確認リスト
+    // ラジオボタン初期値（ベース変化記録があるならタイムラインを優先）
+    const radioTimeline = document.querySelector('input[name="base-save-mode"][value="timeline"]');
+    const radioFixed = document.querySelector('input[name="base-save-mode"][value="fixed"]');
+    if (recordedBaseEvents.length > 0) {
+      radioTimeline.checked = true;
+      switchConfirmBaseMode('timeline');
+    } else {
+      radioFixed.checked = true;
+      switchConfirmBaseMode('fixed');
+    }
+
+    // 3. 単発リズム確認リスト
     document.getElementById('confirm-loop-sec').innerText = Math.round(sessionLoopDurationMs / 1000);
     const includeAccChk = document.getElementById('confirm-include-accents');
     const accListEl = document.getElementById('confirm-accent-list');
@@ -1466,19 +1625,32 @@
     }
 
     // デフォルトレシピ名の生成
-    const checkedBases = candidateBases.filter(b => defaultCheckedIds.includes(b.id));
-    const baseTitle = checkedBases.length > 0 ? checkedBases.map(b => b.name).join(' × ') : '単発リズムのみ';
-    const defaultName = recordedAccents.length > 0 ? `${baseTitle}（単発${recordedAccents.length}音）` : baseTitle;
+    const allNames = candidateBases.length > 0
+      ? candidateBases.map(b => b.name).join(' → ')
+      : '単発リズムのみ';
+    const defaultName = recordedAccents.length > 0 ? `${allNames}（単発${recordedAccents.length}音）` : allNames;
     document.getElementById('confirm-recipe-title').value = defaultName;
 
     document.getElementById('save-confirm-modal').classList.remove('hidden');
+  }
+
+  function switchConfirmBaseMode(mode) {
+    const timelineEl = document.getElementById('confirm-base-timeline-view');
+    const fixedEl = document.getElementById('confirm-base-fixed-view');
+    if (mode === 'timeline') {
+      timelineEl.classList.remove('hidden');
+      fixedEl.classList.add('hidden');
+    } else {
+      timelineEl.classList.add('hidden');
+      fixedEl.classList.remove('hidden');
+    }
   }
 
   function limitConfirmBaseCheck(changedChk) {
     const checked = document.querySelectorAll('.confirm-base-chk:checked');
     if (checked.length > 2) {
       changedChk.checked = false;
-      alert('環境ベース音は最大2つまで選択できます。');
+      alert('固定モードで選べる環境ベース音は最大2つまでです。');
     }
   }
 
@@ -1505,17 +1677,29 @@
       return;
     }
 
-    // 選択されたベース音と音量を取得
-    const selectedSlots = [];
-    document.querySelectorAll('.confirm-base-chk:checked').forEach(chk => {
-      const id = chk.value;
-      const name = chk.dataset.name;
-      const volEl = document.querySelector(`.confirm-base-vol[data-id="${id}"]`);
-      const volume = volEl ? parseInt(volEl.value, 10) / 100 : 0.5;
-      selectedSlots.push({ id, name, ownerId: 'solo', volume });
-    });
+    const saveMode = document.querySelector('input[name="base-save-mode"]:checked').value;
+    let savedSlots = [];
+    let savedBaseEvents = [];
 
-    // 選択された単発リズムを取得
+    if (saveMode === 'timeline') {
+      savedBaseEvents = JSON.parse(JSON.stringify(recordedBaseEvents));
+      // 初期状態（0秒目）の枠があれば slots に入れておく
+      if (savedBaseEvents.length > 0 && savedBaseEvents[0].offsetMs === 0) {
+        savedSlots = JSON.parse(JSON.stringify(savedBaseEvents[0].slots));
+      }
+    } else {
+      document.querySelectorAll('.confirm-base-chk:checked').forEach(chk => {
+        const id = chk.value;
+        const name = chk.dataset.name;
+        const volEl = document.querySelector(`.confirm-base-vol[data-id="${id}"]`);
+        const volume = volEl ? parseInt(volEl.value, 10) / 100 : 0.5;
+        savedSlots.push({ id, name, ownerId: 'solo', volume });
+      });
+      if (savedSlots.length > 0) {
+        savedBaseEvents = [{ offsetMs: 0, slots: JSON.parse(JSON.stringify(savedSlots)) }];
+      }
+    }
+
     let selectedAccents = [];
     if (document.getElementById('confirm-include-accents').checked) {
       document.querySelectorAll('.confirm-acc-chk:checked').forEach(chk => {
@@ -1526,15 +1710,16 @@
       });
     }
 
-    if (selectedSlots.length === 0 && selectedAccents.length === 0) {
-      alert('ベース音または単発リズムを1つ以上選択してください！');
+    if (savedSlots.length === 0 && savedBaseEvents.length === 0 && selectedAccents.length === 0) {
+      alert('ベース音または単発リズムを1つ以上含めてください！');
       return;
     }
 
     list.push({
       id: Date.now(),
       title,
-      slots: selectedSlots,
+      slots: savedSlots,
+      baseEvents: savedBaseEvents,
       accents: selectedAccents,
       loopDurationMs: sessionLoopDurationMs
     });
@@ -1595,11 +1780,20 @@
     }
     container.innerHTML = '';
     list.forEach(item => {
-      const baseDesc = item.slots && item.slots.length > 0
-        ? item.slots.map(s => `${s.name}(${Math.round(s.volume * 100)}%)`).join(' + ')
-        : 'ベースなし';
+      // 登場したすべてのベース音名を抽出
+      const nameSet = new Set();
+      if (item.slots) item.slots.forEach(s => nameSet.add(s.name));
+      if (item.baseEvents) item.baseEvents.forEach(ev => ev.slots.forEach(s => nameSet.add(s.name)));
+
+      const baseNames = [...nameSet];
+      let baseDesc = baseNames.length > 0 ? `🌊 ${baseNames.join(' → ')}` : 'ベースなし';
+      if (item.baseEvents && item.baseEvents.length > 1) {
+        baseDesc += `（タイムライン変化${item.baseEvents.length}回）`;
+      }
+
       const accCount = item.accents ? item.accents.length : 0;
-      const accDesc = accCount > 0 ? ` / 💧単発リズム ${accCount}音（${Math.round((item.loopDurationMs || 60000)/1000)}秒ループ）` : '';
+      const loopSec = Math.round((item.loopDurationMs || 60000) / 1000);
+      const accDesc = accCount > 0 ? ` / 💧単発 ${accCount}音（${loopSec}秒周期）` : `（${loopSec}秒周期）`;
 
       const div = document.createElement('div');
       div.className = 'flex-row';
@@ -1654,6 +1848,7 @@
     sessionStartTime = 0;
     stageSlots = [];
     usedBaseHistory = [];
+    recordedBaseEvents = [];
     recordedAccents = [];
     stopTimelineLoop();
     toggleAutoAccent(false);
@@ -1680,6 +1875,7 @@
         startSoloMode({
           slots: backup.slots,
           history: backup.history,
+          baseEvents: backup.baseEvents,
           accents: backup.accents,
           loopDurationMs: backup.loopDurationMs
         }, true);
@@ -1688,6 +1884,7 @@
         currentAppState = 'multi_rating';
         stageSlots = backup.slots || [];
         usedBaseHistory = backup.history || JSON.parse(JSON.stringify(stageSlots));
+        recordedBaseEvents = backup.baseEvents || [];
         recordedAccents = backup.accents || [];
         sessionLoopDurationMs = backup.loopDurationMs || 60000;
         updateRecordedCountUI();
@@ -1701,7 +1898,7 @@
         if (backup.ratingText) {
           document.getElementById('rating-result').innerText = backup.ratingText;
         }
-        if (stageSlots.length > 0 || recordedAccents.length > 0) {
+        if (stageSlots.length > 0 || recordedAccents.length > 0 || recordedBaseEvents.length > 0) {
           document.getElementById('resume-audio-banner').classList.remove('hidden');
         }
       }
